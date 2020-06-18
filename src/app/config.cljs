@@ -17,12 +17,12 @@
       false)))
 
 (def site
-  {:port 5021,
-   :title "Cumulo",
-   :icon "http://cdn.tiye.me/logo/cumulo.png",
+  {:port 11023,
+   :title "Patlepat",
+   :icon "http://cdn.tiye.me/logo/topix.png",
    :dev-ui "http://localhost:8100/main.css",
    :release-ui "http://cdn.tiye.me/favored-fonts/main.css",
-   :cdn-url "http://cdn.tiye.me/cumulo-workflow/",
+   :cdn-url "http://cdn.tiye.me/patlepat/",
    :theme "#eeeeff",
-   :storage-key "workflow-storage",
+   :storage-key "patlepat",
    :storage-file "storage.edn"})
