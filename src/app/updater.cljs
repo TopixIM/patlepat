@@ -5,7 +5,8 @@
             [app.updater.router :as router]
             [app.schema :as schema]
             [respo-message.updater :refer [update-messages]]
-            [app.updater.message :as message]))
+            [app.updater.message :as message]
+            [app.updater.template :as template]))
 
 (defn updater [db op op-data sid op-id op-time]
   (let [session (get-in db [:sessions sid])
@@ -21,5 +22,6 @@
             :router/change router/change
             :message/create message/create-message
             :message/clear message/clear
+            :template/create template/create-template
             (do (println "Unknown op:" op) identity))]
     (f db op-data sid op-id op-time session user)))

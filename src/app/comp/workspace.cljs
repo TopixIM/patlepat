@@ -3,8 +3,9 @@
   (:require [hsl.core :refer [hsl]]
             [respo-ui.core :as ui]
             [respo.comp.space :refer [=<]]
-            [respo.core :refer [defcomp list-> <> span div]]
-            [app.config :as config]))
+            [respo.core :refer [defcomp >> list-> <> span div]]
+            [app.config :as config]
+            [app.comp.templates :refer [comp-templates]]))
 
 (defcomp
  comp-tabs
@@ -29,10 +30,12 @@
 
 (defcomp
  comp-workspace
- (router)
+ (states router templates)
  (div
   {:style (merge ui/expand ui/column)}
   (comp-tabs
    (:name router)
    [{:title "Workspace", :name :home} {:title "Templates", :name :templates}])
-  (if (= :templates (:name router)) (<> "TEMPLATES") (<> "WORKSPACE"))))
+  (if (= :templates (:name router))
+    (comp-templates (>> states :templates) templates)
+    (<> "WORKSPACE"))))

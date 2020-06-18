@@ -36,5 +36,6 @@
                        (fn [[k message]]
                          [k
                           (assoc message :user (twig-user (get users (:author-id message))))]))
-                      (into {}))}
+                      (into {})),
+       :templates (:templates db)}
       nil))))

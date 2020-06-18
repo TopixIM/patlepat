@@ -61,7 +61,7 @@
        render-body (fn []
                      (div
                       {:style (merge ui/expand ui/row)}
-                      (comp-workspace router)
+                      (comp-workspace (>> states :workspace) router (:templates store))
                       (comp-chatroom
                        (>> states :chat)
                        (:messages store)

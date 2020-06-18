@@ -26,3 +26,5 @@
    :theme "#eeeeff",
    :storage-key "patlepat",
    :storage-file "storage.edn"})
+
+(def slot-matcher #"\{[\w\s\u4e00-\u9fa5]+\}")
