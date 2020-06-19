@@ -8,6 +8,26 @@
             [respo-alerts.core :refer [use-prompt]]))
 
 (defcomp
+ comp-template-preview
+ (template)
+ (list->
+  {}
+  (->> (interleave
+        (concat (:pieces template) (repeat 10 ""))
+        (->> (:slots template) (map (fn [[j slot]] (:text slot)))))
+       (map-indexed
+        (fn [idx item]
+          [idx
+           (if (re-matches config/slot-matcher item)
+             (<>
+              item
+              {:color (hsl 200 80 70),
+               :font-size 24,
+               :margin "0 4px",
+               :vertical-align :bottom})
+             (<> item {:color (hsl 0 0 50)}))])))))
+
+(defcomp
  comp-templates
  (states templates)
  (let [template-editor (use-prompt (>> states :editor) {:text "Edit a template"})]
@@ -33,28 +53,17 @@
                         {:padding "4px 8px", :border-bottom (str "1px solid " (hsl 0 0 94))})}
                (div
                 {}
-                (list->
-                 {}
-                 (->> (interleave
-                       (:pieces template)
-                       (->> (:slots template) (map (fn [[j slot]] (:text slot)))))
-                      (map-indexed
-                       (fn [idx item]
-                         [idx
-                          (if (re-matches config/slot-matcher item)
-                            (<>
-                             item
-                             {:color (hsl 200 80 70),
-                              :font-size 24,
-                              :margin "0 4px",
-                              :vertical-align :bottom})
-                            (<> item {:color (hsl 0 0 50)}))]))))
+                (comp-template-preview template)
                 (div {} (<> (:text template) {:color (hsl 0 0 70), :font-size 10})))
                (div
                 {}
-                (a {:style ui/link, :inner-text "Choose"})
+                (a
+                 {:style ui/link,
+                  :inner-text "Choose",
+                  :on-click (fn [e d!] (d! :template/choose (:id template)))})
                 (=< 8 nil)
-                (a {:style ui/link, :inner-text "Edit"})
-                (=< 8 nil)
-                (a {:style ui/link, :inner-text "Remove"})))]))))
+                (a
+                 {:style ui/link,
+                  :inner-text "Remove",
+                  :on-click (fn [e d!] (d! :template/remove (:id template)))})))]))))
     (:ui template-editor))))
