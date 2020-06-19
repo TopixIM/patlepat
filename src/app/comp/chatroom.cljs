@@ -53,9 +53,8 @@
     (div
      {:style ui/row-parted}
      (span nil)
-     (a
-      {:style ui/link, :inner-text "Clear", :on-click (fn [e d!] (d! :message/clear nil))}))
-    (if (empty? messages) (comp-placeholder "No messages"))
+     (a {:style ui/link, :inner-text "清空", :on-click (fn [e d!] (d! :message/clear nil))}))
+    (if (empty? messages) (comp-placeholder "没有消息"))
     (list->
      {:style (merge ui/expand {:padding-bottom 400})}
      (->> messages
@@ -71,5 +70,4 @@
        :on-keydown (fn [e d!]
          (when (= 13 (:key-code e)) (send-message d!) (.preventDefault (:event e))))})
      (=< 8 nil)
-     (button
-      {:style ui/button, :inner-text "Send", :on-click (fn [e d!] (send-message d!))})))))
+     (a {:style ui/link, :inner-text "发送", :on-click (fn [e d!] (send-message d!))})))))

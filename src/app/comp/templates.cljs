@@ -30,7 +30,7 @@
 
 (defcomp
  comp-templates
- (states templates)
+ (states templates selected)
  (let [template-editor (use-prompt (>> states :editor) {:text "Edit a template"})]
    (div
     {:style (merge ui/expand ui/column)}
@@ -43,7 +43,7 @@
        :on-click (fn [e d!]
          ((:show template-editor) d! (fn [text] (d! :template/create text))))}))
     (list->
-     {}
+     {:style {:padding "0px 4px"}}
      (->> templates
           (map
            (fn [[k template]]
@@ -51,7 +51,8 @@
               (div
                {:style (merge
                         ui/row-parted
-                        {:padding "4px 8px", :border-bottom (str "1px solid " (hsl 0 0 94))})}
+                        {:padding "4px 8px", :border-bottom (str "1px solid " (hsl 0 0 94))}
+                        (if (= selected (:id template)) {:background-color (hsl 0 0 97)}))}
                (div
                 {}
                 (comp-template-preview template)
@@ -60,12 +61,12 @@
                 {}
                 (a
                  {:style ui/link,
-                  :inner-text "Choose",
+                  :inner-text "使用该模板",
                   :on-click (fn [e d!] (d! :template/choose (:id template)))})
                 (=< 8 nil)
                 (a
                  {:style ui/link,
-                  :inner-text "Remove",
+                  :inner-text "删除",
                   :on-click (fn [e d!] (d! :template/remove (:id template)))})))]))))
     (if (empty? templates) (comp-placeholder "No tempaltes"))
     (:ui template-editor))))

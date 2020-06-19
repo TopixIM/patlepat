@@ -27,7 +27,7 @@
      (=< 8 nil)
      (a
       {:style ui/link,
-       :inner-text "Add",
+       :inner-text "增加卡片",
        :on-click (fn [e d!]
          ((:show create-plugin)
           d!
@@ -49,10 +49,7 @@
                         :border (str "1px solid " (hsl 0 0 90)),
                         :margin "4px"}}
                (if (= user-id (:author-id card))
-                 (span
-                  {}
-                  (<> (:text card))
-                  (<> "(mine)" {:font-size 12, :color (hsl 0 0 80)}))
+                 (span {} (<> (:text card)) (<> "(我的)" {:font-size 12, :color (hsl 0 0 80)}))
                  (<> (string/replace (:text card) #"." "*"))))]))))
     (if (empty? (:cards slot)) (comp-placeholder "No cards, add one"))
     (:ui create-plugin))))
@@ -62,11 +59,9 @@
  (states router templates game user)
  (div
   {:style (merge ui/expand ui/column {:flex 1.5})}
-  (comp-tabs
-   (:name router)
-   [{:title "Workspace", :name :home} {:title "Templates", :name :templates}])
+  (comp-tabs (:name router) [{:title "主页", :name :home} {:title "模板", :name :templates}])
   (if (= :templates (:name router))
-    (comp-templates (>> states :templates) templates)
+    (comp-templates (>> states :templates) templates (:template-id game))
     (let [template (get templates (:template-id game))
           has-next? (->> template
                          :slots
@@ -82,10 +77,10 @@
           (=< 16 nil)
           (if has-next?
             (button
-             {:style ui/button,
-              :inner-text "Show result",
+             {:style (merge ui/button {:color :white, :background-color (hsl 200 90 60)}),
+              :inner-text "拼接句子",
               :on-click (fn [e d!] (d! :message/show-result nil))})
-            (<> "Incomplete cards")))
+            (<> "卡片种类不足" {:color (hsl 10 80 76)})))
          (=< nil 20)
          (list->
           {:style ui/row}

@@ -70,7 +70,7 @@
                       (comp-chatroom
                        (>> states :chat)
                        (:messages store)
-                       {:border-left (str "1px solid " (hsl 0 0 80))})))]
+                       {:border-left (str "1px solid " (hsl 0 0 90))})))]
    (if (nil? store)
      (comp-offline)
      (div

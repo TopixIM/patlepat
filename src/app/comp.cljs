@@ -10,14 +10,20 @@
  comp-placeholder
  (text)
  (div
-  {:style (merge ui/center {:padding 16, :font-family ui/font-fancy, :color (hsl 0 0 80)})}
+  {:style (merge
+           ui/center
+           {:padding 16,
+            :font-family ui/font-fancy,
+            :color (hsl 0 0 80),
+            :font-size 12,
+            :font-style :italic})}
   (<> text)))
 
 (defcomp
  comp-tabs
  (selected tabs)
  (list->
-  {:style ui/row}
+  {:style (merge ui/row {:padding "8px 16px"})}
   (->> tabs
        (map
         (fn [info]
@@ -28,8 +34,9 @@
                       :font-family ui/font-fancy,
                       :font-weight 300,
                       :cursor :pointer,
-                      :font-size 20,
-                      :color (hsl 0 0 60)}
-                     (if (= selected (:name info)) {:font-weight 700, :color (hsl 0 0 30)})),
+                      :font-size 16,
+                      :color (hsl 0 0 70),
+                      :line-height "32px"}
+                     (if (= selected (:name info)) {:font-weight 500, :color (hsl 0 0 30)})),
              :on-click (fn [e d!] (d! :router/change {:name (:name info)}))}
             (<> (:title info)))])))))
