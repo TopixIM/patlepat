@@ -3,7 +3,7 @@
   (:require [hsl.core :refer [hsl]]
             [respo-ui.core :as ui]
             [respo.comp.space :refer [=<]]
-            [respo.core :refer [defcomp >> list-> <> span div a]]
+            [respo.core :refer [defcomp >> list-> <> span div a button]]
             [app.config :as config]
             [app.comp.templates :refer [comp-templates comp-template-preview]]
             [respo-alerts.core :refer [use-prompt]]
@@ -48,7 +48,10 @@
                         :border (str "1px solid " (hsl 0 0 90)),
                         :margin "4px"}}
                (if (= user-id (:author-id card))
-                 (<> (str (:text card) "(by me)"))
+                 (span
+                  {}
+                  (<> (:text card))
+                  (<> "(mine)" {:font-size 12, :color (hsl 0 0 80)}))
                  (<> (string/replace (:text card) #"." "*"))))]))))
     (if (empty? (:cards slot))
       (div
@@ -89,11 +92,25 @@
    [{:title "Workspace", :name :home} {:title "Templates", :name :templates}])
   (if (= :templates (:name router))
     (comp-templates (>> states :templates) templates)
-    (let [template (get templates (:template-id game))]
+    (let [template (get templates (:template-id game))
+          has-next? (->> template
+                         :slots
+                         vals
+                         (map :cards)
+                         (every? (fn [xs] (pos? (count xs)))))]
       (if (some? template)
         (div
          {:style (merge ui/expand ui/column {:padding 16})}
-         (comp-template-preview template)
+         (div
+          {:style ui/row-middle}
+          (comp-template-preview template)
+          (=< 16 nil)
+          (if has-next?
+            (button
+             {:style ui/button,
+              :inner-text "Show result",
+              :on-click (fn [e d!] (d! :message/show-result nil))})
+            (<> "Incomplete cards")))
          (=< nil 20)
          (list->
           {:style ui/row}

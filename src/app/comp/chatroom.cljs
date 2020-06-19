@@ -8,6 +8,37 @@
             [clojure.string :as string]))
 
 (defcomp
+ comp-message
+ (message)
+ (case (:type message)
+   :message
+     (div
+      {:style {:margin "4px 0"}}
+      (<> (str (or (:name (:user message)) "GUEST") ":"))
+      (=< 8 nil)
+      (<> (:text message)))
+   :quote
+     (div
+      {:style (merge ui/row {:align-items :flex-start, :margin "4px 0"})}
+      (<> "gen" {:color (hsl 0 0 80)})
+      (=< 8 nil)
+      (div
+       {:style {:background-color (hsl 200 80 50),
+                :color :white,
+                :padding "2px 8px",
+                :border-radius "6px",
+                :font-size 20,
+                :line-height "30px"}}
+       (<> (:text message))))
+   :operation
+     (div
+      {:style {:margin "4px 0"}}
+      (<> (str (or (:name (:user message)) "Unkown")))
+      (=< 8 nil)
+      (<> (:text message) {:color (hsl 0 0 80)}))
+   (<> (str "Unknown message type: " (:type message)))))
+
+(defcomp
  comp-chatroom
  (states messages styles)
  (let [cursor (:cursor states)
@@ -30,17 +61,10 @@
                 {:padding 16, :font-family ui/font-fancy, :color (hsl 0 0 70)})}
        (<> "No messages")))
     (list->
-     {:style ui/expand}
+     {:style (merge ui/expand {:padding-bottom 400})}
      (->> messages
           (sort-by (fn [[k message]] (:time message)))
-          (map
-           (fn [[k message]]
-             [(:time message)
-              (div
-               {}
-               (<> (str (or (:name (:user message)) "GUEST") ":"))
-               (=< 8 nil)
-               (<> (:text message)))]))))
+          (map (fn [[k message]] [(:time message) (comp-message message)]))))
     (div
      {:style (merge ui/row {:align-items :flex-start})}
      (textarea
