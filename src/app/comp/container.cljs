@@ -61,11 +61,16 @@
        render-body (fn []
                      (div
                       {:style (merge ui/expand ui/row)}
-                      (comp-workspace (>> states :workspace) router (:templates store))
+                      (comp-workspace
+                       (>> states :workspace)
+                       router
+                       (:templates store)
+                       (:game store)
+                       (:user store))
                       (comp-chatroom
                        (>> states :chat)
                        (:messages store)
-                       {:border-left (str "1px solid " (hsl 0 0 80))})))]
+                       {:border-left (str "1px solid " (hsl 0 0 90))})))]
    (if (nil? store)
      (comp-offline)
      (div

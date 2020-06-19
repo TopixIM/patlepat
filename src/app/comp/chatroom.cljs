@@ -5,7 +5,41 @@
             [respo.comp.space :refer [=<]]
             [respo.core :refer [defcomp <> list-> span div textarea button a]]
             [app.config :as config]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [app.comp :refer [comp-placeholder]]))
+
+(defcomp
+ comp-message
+ (message)
+ (case (:type message)
+   :message
+     (div
+      {:style (merge ui/row {:margin "4px 0"})}
+      (<> (str (or (:name (:user message)) "GUEST") ":"))
+      (=< 8 nil)
+      (div {:style ui/expand} (<> (:text message))))
+   :quote
+     (div
+      {:style (merge ui/row {:align-items :flex-start, :margin "4px 0"})}
+      (<> "生成了" {:color (hsl 0 0 80)})
+      (=< 8 nil)
+      (div
+       {:style ui/expand}
+       (div
+        {:style {:background-color (hsl 200 80 50),
+                 :color :white,
+                 :padding "2px 8px",
+                 :border-radius "6px",
+                 :font-size 20,
+                 :line-height "30px"}}
+        (<> (:text message)))))
+   :operation
+     (div
+      {:style (merge ui/row {:margin "4px 0"})}
+      (<> (str (or (:name (:user message)) "Unkown")))
+      (=< 8 nil)
+      (div {:style ui/expand} (<> (:text message) {:color (hsl 0 0 80)})))
+   (<> (str "Unknown message type: " (:type message)))))
 
 (defcomp
  comp-chatroom
@@ -21,26 +55,13 @@
     (div
      {:style ui/row-parted}
      (span nil)
-     (a
-      {:style ui/link, :inner-text "Clear", :on-click (fn [e d!] (d! :message/clear nil))}))
-    (if (empty? messages)
-      (div
-       {:style (merge
-                ui/center
-                {:padding 16, :font-family ui/font-fancy, :color (hsl 0 0 70)})}
-       (<> "No messages")))
+     (a {:style ui/link, :inner-text "清空", :on-click (fn [e d!] (d! :message/clear nil))}))
+    (if (empty? messages) (comp-placeholder "没有消息"))
     (list->
-     {:style ui/expand}
+     {:style (merge ui/expand {:padding-bottom 400})}
      (->> messages
           (sort-by (fn [[k message]] (:time message)))
-          (map
-           (fn [[k message]]
-             [(:time message)
-              (div
-               {}
-               (<> (str (or (:name (:user message)) "GUEST") ":"))
-               (=< 8 nil)
-               (<> (:text message)))]))))
+          (map (fn [[k message]] [(:time message) (comp-message message)]))))
     (div
      {:style (merge ui/row {:align-items :flex-start})}
      (textarea
@@ -51,5 +72,4 @@
        :on-keydown (fn [e d!]
          (when (= 13 (:key-code e)) (send-message d!) (.preventDefault (:event e))))})
      (=< 8 nil)
-     (button
-      {:style ui/button, :inner-text "Send", :on-click (fn [e d!] (send-message d!))})))))
+     (a {:style ui/link, :inner-text "发送", :on-click (fn [e d!] (send-message d!))})))))

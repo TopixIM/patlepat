@@ -5,11 +5,32 @@
             [respo.comp.space :refer [=<]]
             [respo.core :refer [defcomp list-> >> <> span div a]]
             [app.config :as config]
-            [respo-alerts.core :refer [use-prompt]]))
+            [respo-alerts.core :refer [use-prompt]]
+            [app.comp :refer [comp-placeholder]]))
+
+(defcomp
+ comp-template-preview
+ (template)
+ (list->
+  {}
+  (->> (interleave
+        (concat (:pieces template) (repeat 10 ""))
+        (->> (:slots template) (map (fn [[j slot]] (:text slot)))))
+       (map-indexed
+        (fn [idx item]
+          [idx
+           (if (re-matches config/slot-matcher item)
+             (<>
+              item
+              {:color (hsl 200 80 70),
+               :font-size 24,
+               :margin "0 4px",
+               :vertical-align :bottom})
+             (<> item {:color (hsl 0 0 50)}))])))))
 
 (defcomp
  comp-templates
- (states templates)
+ (states templates selected)
  (let [template-editor (use-prompt (>> states :editor) {:text "Edit a template"})]
    (div
     {:style (merge ui/expand ui/column)}
@@ -22,7 +43,7 @@
        :on-click (fn [e d!]
          ((:show template-editor) d! (fn [text] (d! :template/create text))))}))
     (list->
-     {}
+     {:style {:padding "0px 4px"}}
      (->> templates
           (map
            (fn [[k template]]
@@ -30,31 +51,22 @@
               (div
                {:style (merge
                         ui/row-parted
-                        {:padding "4px 8px", :border-bottom (str "1px solid " (hsl 0 0 94))})}
+                        {:padding "4px 8px", :border-bottom (str "1px solid " (hsl 0 0 94))}
+                        (if (= selected (:id template)) {:background-color (hsl 0 0 97)}))}
                (div
                 {}
-                (list->
-                 {}
-                 (->> (interleave
-                       (:pieces template)
-                       (->> (:slots template) (map (fn [[j slot]] (:text slot)))))
-                      (map-indexed
-                       (fn [idx item]
-                         [idx
-                          (if (re-matches config/slot-matcher item)
-                            (<>
-                             item
-                             {:color (hsl 200 80 70),
-                              :font-size 24,
-                              :margin "0 4px",
-                              :vertical-align :bottom})
-                            (<> item {:color (hsl 0 0 50)}))]))))
+                (comp-template-preview template)
                 (div {} (<> (:text template) {:color (hsl 0 0 70), :font-size 10})))
                (div
                 {}
-                (a {:style ui/link, :inner-text "Choose"})
+                (a
+                 {:style ui/link,
+                  :inner-text "使用该模板",
+                  :on-click (fn [e d!] (d! :template/choose (:id template)))})
                 (=< 8 nil)
-                (a {:style ui/link, :inner-text "Edit"})
-                (=< 8 nil)
-                (a {:style ui/link, :inner-text "Remove"})))]))))
+                (a
+                 {:style ui/link,
+                  :inner-text "删除",
+                  :on-click (fn [e d!] (d! :template/remove (:id template)))})))]))))
+    (if (empty? templates) (comp-placeholder "No tempaltes"))
     (:ui template-editor))))

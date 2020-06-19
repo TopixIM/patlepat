@@ -1,7 +1,7 @@
 
 (ns app.schema )
 
-(def card {:id nil, :text "", :author-id nil})
+(def card {:id nil, :text "", :author-id nil, :time nil})
 
 (def message {:id nil, :author-id nil, :text "", :type :message, :time nil})
 
@@ -24,4 +24,5 @@
   {:sessions (do session {}),
    :users (do user {}),
    :messages (do message {}),
-   :templates (do template {})})
+   :templates (do template {}),
+   :game {:template-id nil}})
