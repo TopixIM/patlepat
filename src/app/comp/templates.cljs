@@ -5,7 +5,8 @@
             [respo.comp.space :refer [=<]]
             [respo.core :refer [defcomp list-> >> <> span div a]]
             [app.config :as config]
-            [respo-alerts.core :refer [use-prompt]]))
+            [respo-alerts.core :refer [use-prompt]]
+            [app.comp :refer [comp-placeholder]]))
 
 (defcomp
  comp-template-preview
@@ -66,4 +67,5 @@
                  {:style ui/link,
                   :inner-text "Remove",
                   :on-click (fn [e d!] (d! :template/remove (:id template)))})))]))))
+    (if (empty? templates) (comp-placeholder "No tempaltes"))
     (:ui template-editor))))

@@ -5,7 +5,8 @@
             [respo.comp.space :refer [=<]]
             [respo.core :refer [defcomp <> list-> span div textarea button a]]
             [app.config :as config]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [app.comp :refer [comp-placeholder]]))
 
 (defcomp
  comp-message
@@ -54,12 +55,7 @@
      (span nil)
      (a
       {:style ui/link, :inner-text "Clear", :on-click (fn [e d!] (d! :message/clear nil))}))
-    (if (empty? messages)
-      (div
-       {:style (merge
-                ui/center
-                {:padding 16, :font-family ui/font-fancy, :color (hsl 0 0 70)})}
-       (<> "No messages")))
+    (if (empty? messages) (comp-placeholder "No messages"))
     (list->
      {:style (merge ui/expand {:padding-bottom 400})}
      (->> messages

@@ -7,7 +7,8 @@
             [app.config :as config]
             [app.comp.templates :refer [comp-templates comp-template-preview]]
             [respo-alerts.core :refer [use-prompt]]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [app.comp :refer [comp-tabs comp-placeholder]]))
 
 (defcomp
  comp-slot
@@ -53,34 +54,8 @@
                   (<> (:text card))
                   (<> "(mine)" {:font-size 12, :color (hsl 0 0 80)}))
                  (<> (string/replace (:text card) #"." "*"))))]))))
-    (if (empty? (:cards slot))
-      (div
-       {:style (merge
-                ui/center
-                {:padding 16, :font-family ui/font-fancy, :color (hsl 0 0 80)})}
-       (<> "No cards, add one")))
+    (if (empty? (:cards slot)) (comp-placeholder "No cards, add one"))
     (:ui create-plugin))))
-
-(defcomp
- comp-tabs
- (selected tabs)
- (list->
-  {:style ui/row}
-  (->> tabs
-       (map
-        (fn [info]
-          [(:name info)
-           (div
-            {:style (merge
-                     {:padding "0 8px",
-                      :font-family ui/font-fancy,
-                      :font-weight 300,
-                      :cursor :pointer,
-                      :font-size 20,
-                      :color (hsl 0 0 60)}
-                     (if (= selected (:name info)) {:font-weight 700, :color (hsl 0 0 30)})),
-             :on-click (fn [e d!] (d! :router/change {:name (:name info)}))}
-            (<> (:title info)))])))))
 
 (defcomp
  comp-workspace
