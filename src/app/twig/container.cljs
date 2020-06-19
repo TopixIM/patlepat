@@ -16,7 +16,8 @@
  (db session records)
  (let [logged-in? (some? (:user-id session))
        router (:router session)
-       base-data {:logged-in? logged-in?, :session session, :reel-length (count records)}]
+       base-data {:logged-in? logged-in?, :session session, :reel-length (count records)}
+       users (:users db)]
    (merge
     base-data
     (if logged-in?
@@ -29,5 +30,12 @@
                   :profile (twig-members (:sessions db) (:users db))
                   {})),
        :count (count (:sessions db)),
-       :color (color/randomColor)}
+       :color (color/randomColor),
+       :messages (->> (:messages db)
+                      (map
+                       (fn [[k message]]
+                         [k
+                          (assoc message :user (twig-user (get users (:author-id message))))]))
+                      (into {})),
+       :templates (:templates db)}
       nil))))

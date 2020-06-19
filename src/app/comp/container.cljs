@@ -12,7 +12,9 @@
             [cumulo-reel.comp.reel :refer [comp-reel]]
             [app.config :refer [dev?]]
             [app.schema :as schema]
-            [app.config :as config]))
+            [app.config :as config]
+            [app.comp.workspace :refer [comp-workspace]]
+            [app.comp.chatroom :refer [comp-chatroom]]))
 
 (defcomp
  comp-offline
@@ -55,7 +57,15 @@
  (let [state (:data states)
        session (:session store)
        router (:router store)
-       router-data (:data router)]
+       router-data (:data router)
+       render-body (fn []
+                     (div
+                      {:style (merge ui/expand ui/row)}
+                      (comp-workspace (>> states :workspace) router (:templates store))
+                      (comp-chatroom
+                       (>> states :chat)
+                       (:messages store)
+                       {:border-left (str "1px solid " (hsl 0 0 80))})))]
    (if (nil? store)
      (comp-offline)
      (div
@@ -63,7 +73,8 @@
       (comp-navigation (:logged-in? store) (:count store))
       (if (:logged-in? store)
         (case (:name router)
-          :home (<> "Home")
+          :home (render-body)
+          :templates (render-body)
           :profile (comp-profile (:user store) (:data router))
           (<> router))
         (comp-login (>> states :login)))
