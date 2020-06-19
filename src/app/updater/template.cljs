@@ -27,5 +27,10 @@
                           (into {}))}]
     (assoc-in db [:templates op-id] data)))
 
+(defn remove-card [db op-data sid op-id op-time session user]
+  (dissoc-in
+   db
+   [:templates (:template-id op-data) :slots (:slot-id op-data) :cards (:card-id op-data)]))
+
 (defn remove-template [db op-data sid op-id op-time session user]
   (dissoc-in db [:templates op-data]))

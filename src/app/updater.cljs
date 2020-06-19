@@ -26,6 +26,7 @@
             :template/remove template/remove-template
             :template/choose template/choose
             :template/add-card template/add-card
+            :template/remove-card template/remove-card
             :message/show-result message/show-result
             (do (println "Unknown op:" op) identity))]
     (f db op-data sid op-id op-time session user)))

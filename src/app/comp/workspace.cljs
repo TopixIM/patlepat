@@ -8,7 +8,35 @@
             [app.comp.templates :refer [comp-templates comp-template-preview]]
             [respo-alerts.core :refer [use-prompt]]
             [clojure.string :as string]
-            [app.comp :refer [comp-tabs comp-placeholder]]))
+            [app.comp :refer [comp-tabs comp-placeholder]]
+            [feather.core :refer [comp-icon]]))
+
+(defcomp
+ comp-card
+ (card mine? on-remove)
+ (div
+  {:style {:display :inline-block,
+           :padding "8px 16px",
+           :border (str "1px solid " (hsl 0 0 90)),
+           :margin "4px"}}
+  (if mine?
+    (span
+     {}
+     (<> (:text card))
+     (<>
+      "(我的)"
+      {:font-size 12, :color (hsl 0 0 80), :line-height "28px", :vertical-align :middle})
+     (=< 8 nil)
+     (comp-icon
+      :x
+      {:color (hsl 0 80 60), :cursor :pointer, :font-size 12}
+      (fn [e d!] (on-remove d!))))
+    (<>
+     (string/replace (:text card) #"." "*")
+     {:font-size 24,
+      :line-height "28px",
+      :font-family ui/font-code,
+      :vertical-align :middle}))))
 
 (defcomp
  comp-slot
@@ -43,15 +71,14 @@
           (map
            (fn [[k card]]
              [k
-              (div
-               {:style {:display :inline-block,
-                        :padding "0px 4px",
-                        :border (str "1px solid " (hsl 0 0 90)),
-                        :margin "4px"}}
-               (if (= user-id (:author-id card))
-                 (span {} (<> (:text card)) (<> "(我的)" {:font-size 12, :color (hsl 0 0 80)}))
-                 (<> (string/replace (:text card) #"." "*"))))]))))
-    (if (empty? (:cards slot)) (comp-placeholder "No cards, add one"))
+              (comp-card
+               card
+               (= user-id (:author-id card))
+               (fn [d!]
+                 (d!
+                  :template/remove-card
+                  {:template-id template-id, :slot-id (:id slot), :card-id (:id card)})))]))))
+    (if (empty? (:cards slot)) (comp-placeholder "没有卡片"))
     (:ui create-plugin))))
 
 (defcomp

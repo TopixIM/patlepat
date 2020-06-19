@@ -14,29 +14,31 @@
  (case (:type message)
    :message
      (div
-      {:style {:margin "4px 0"}}
+      {:style (merge ui/row {:margin "4px 0"})}
       (<> (str (or (:name (:user message)) "GUEST") ":"))
       (=< 8 nil)
-      (<> (:text message)))
+      (div {:style ui/expand} (<> (:text message))))
    :quote
      (div
       {:style (merge ui/row {:align-items :flex-start, :margin "4px 0"})}
-      (<> "gen" {:color (hsl 0 0 80)})
+      (<> "生成了" {:color (hsl 0 0 80)})
       (=< 8 nil)
       (div
-       {:style {:background-color (hsl 200 80 50),
-                :color :white,
-                :padding "2px 8px",
-                :border-radius "6px",
-                :font-size 20,
-                :line-height "30px"}}
-       (<> (:text message))))
+       {:style ui/expand}
+       (div
+        {:style {:background-color (hsl 200 80 50),
+                 :color :white,
+                 :padding "2px 8px",
+                 :border-radius "6px",
+                 :font-size 20,
+                 :line-height "30px"}}
+        (<> (:text message)))))
    :operation
      (div
-      {:style {:margin "4px 0"}}
+      {:style (merge ui/row {:margin "4px 0"})}
       (<> (str (or (:name (:user message)) "Unkown")))
       (=< 8 nil)
-      (<> (:text message) {:color (hsl 0 0 80)}))
+      (div {:style ui/expand} (<> (:text message) {:color (hsl 0 0 80)})))
    (<> (str "Unknown message type: " (:type message)))))
 
 (defcomp
