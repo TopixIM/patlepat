@@ -22,11 +22,12 @@
             :router/change router/change
             :message/create message/create-message
             :message/clear message/clear
+            :message/blot-out message/blot-out
+            :message/show-result message/show-result
             :template/create template/create-template
             :template/remove template/remove-template
             :template/choose template/choose
             :template/add-card template/add-card
             :template/remove-card template/remove-card
-            :message/show-result message/show-result
             (do (println "Unknown op:" op) identity))]
     (f db op-data sid op-id op-time session user)))

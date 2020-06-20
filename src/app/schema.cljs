@@ -3,7 +3,7 @@
 
 (def card {:id nil, :text "", :author-id nil, :time nil})
 
-(def message {:id nil, :author-id nil, :text "", :type :message, :time nil})
+(def message {:id nil, :author-id nil, :text "", :type :message, :time nil, :blotted? nil})
 
 (def router {:name nil, :title nil, :data {}, :router nil})
 

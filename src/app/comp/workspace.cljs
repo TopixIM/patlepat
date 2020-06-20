@@ -118,4 +118,4 @@
                 (fn [[k slot]] [k (comp-slot (>> states k) slot (:id template) (:id user))])))))
         (div
          {:style {:padding 16, :font-family ui/font-fancy, :font-weight 300}}
-         (<> "No picked template")))))))
+         (<> "没有选择模板, 或者模板已不存在")))))))
