@@ -5,7 +5,7 @@
             [respo.comp.space :refer [=<]]
             [respo.core :refer [defcomp list-> >> <> span div a]]
             [app.config :as config]
-            [respo-alerts.core :refer [use-prompt]]
+            [respo-alerts.core :refer [use-prompt use-confirm]]
             [app.comp :refer [comp-placeholder]]))
 
 (defcomp
@@ -31,14 +31,15 @@
 (defcomp
  comp-templates
  (states templates selected)
- (let [template-editor (use-prompt (>> states :editor) {:text "Edit a template"})]
+ (let [template-editor (use-prompt (>> states :editor) {:text "编辑模板, 用 {什么} 来插入填空位置"})
+       remove-plugin (use-confirm (>> states :remove) {:text "确认真的要删除模板吗"})]
    (div
     {:style (merge ui/expand ui/column)}
     (div
      {:style ui/row-parted}
      (span nil)
      (a
-      {:inner-text "Add",
+      {:inner-text "添加模板",
        :style ui/link,
        :on-click (fn [e d!]
          ((:show template-editor) d! (fn [text] (d! :template/create text))))}))
@@ -57,16 +58,19 @@
                 {}
                 (comp-template-preview template)
                 (div {} (<> (:text template) {:color (hsl 0 0 70), :font-size 10})))
-               (div
-                {}
-                (a
-                 {:style ui/link,
-                  :inner-text "使用该模板",
-                  :on-click (fn [e d!] (d! :template/choose (:id template)))})
-                (=< 8 nil)
-                (a
-                 {:style ui/link,
-                  :inner-text "删除",
-                  :on-click (fn [e d!] (d! :template/remove (:id template)))})))]))))
+               (if-not (= selected (:id template))
+                 (div
+                  {}
+                  (a
+                   {:style ui/link,
+                    :inner-text "使用该模板",
+                    :on-click (fn [e d!] (d! :template/choose (:id template)))})
+                  (=< 8 nil)
+                  (a
+                   {:style ui/link,
+                    :inner-text "删除",
+                    :on-click (fn [e d!]
+                      ((:show remove-plugin) d! (fn [] (d! :template/remove (:id template)))))}))))]))))
     (if (empty? templates) (comp-placeholder "No tempaltes"))
-    (:ui template-editor))))
+    (:ui template-editor)
+    (:ui remove-plugin))))
