@@ -3,7 +3,7 @@
   (:require [hsl.core :refer [hsl]]
             [app.schema :as schema]
             [respo-ui.core :as ui]
-            [respo.core :refer [defcomp list-> <> span div button]]
+            [respo.core :refer [defcomp list-> <> span div button a]]
             [respo.comp.space :refer [=<]]
             [app.config :as config]))
 
@@ -46,4 +46,9 @@
      :on-click (fn [e dispatch!]
        (dispatch! :user/log-out nil)
        (.removeItem js/localStorage (:storage-key config/site)))}
-    (<> "Log out")))))
+    (<> "Log out")))
+  (=< nil 48)
+  (a
+   {:href "https://github.com/TopixIM/patlepat",
+    :inner-text "GitHub Address",
+    :target "_blank"})))

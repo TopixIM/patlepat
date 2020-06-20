@@ -23,6 +23,7 @@
             :message/create message/create-message
             :message/clear message/clear
             :message/blot-out message/blot-out
+            :message/show-result message/show-result
             :template/create template/create-template
             :template/remove template/remove-template
             :template/choose template/choose
