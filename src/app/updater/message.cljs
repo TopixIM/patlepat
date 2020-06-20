@@ -1,7 +1,25 @@
 
 (ns app.updater.message (:require [clojure.string :as string]))
 
-(defn clear [db op-data sid op-id op-time session user] (assoc db :messages {}))
+(defn blot-out [db op-data sid op-id op-time session user]
+  (assoc-in db [:messages op-data :blotted?] true))
+
+(defn clear [db op-data sid op-id op-time session user]
+  (update
+   db
+   :messages
+   (fn [messages]
+     (assoc
+      (->> messages
+           (sort-by (fn [[k message]] (unchecked-negate (:time message))))
+           (take 5)
+           (into {}))
+      op-id
+      {:id op-id,
+       :text "清除了消息",
+       :time op-time,
+       :type :operation,
+       :author-id (:user-id session)}))))
 
 (defn create-message [db op-data sid op-id op-time session user]
   (assoc-in

@@ -25,6 +25,7 @@
     "ws": "^7.3.0"
   },
   "devDependencies": {
+    "dayjs": "^1.8.28",
     "feather-icons": "^4.28.0",
     "node-notifier": "^7.0.1",
     "shadow-cljs": "^2.10.12",
