@@ -50,6 +50,7 @@ jobs:
         && git clone https://github.com/Respo/respo-feather.calcit.git
         && git clone https://github.com/Respo/alerts.calcit.git
         && git clone https://github.com/calcit-lang/calcit-wss.git
+        && git clone https://github.com/calcit-lang/calcit-regex.git --branch 0.0.2
         && git clone https://github.com/calcit-lang/calcit.std.git
 
     - run: cr --entry server --emit-ir -1

@@ -5,7 +5,7 @@
     :version |0.0.1
   :entries $ {}
     :server $ {} (:port 6001) (:storage-key |calcit.cirru) (:init-fn |app.server/main!) (:reload-fn |app.server/reload!)
-      :modules $ [] |lilac/ |recollect/ |memof/ |ws-edn.calcit/ |cumulo-util.calcit/ |cumulo-reel.calcit/ |calcit-wss/ |calcit.std/
+      :modules $ [] |lilac/ |recollect/ |memof/ |ws-edn.calcit/ |cumulo-util.calcit/ |cumulo-reel.calcit/ |calcit-wss/ |calcit.std/ |calcit-regex/
   :files $ {}
     |app.comp.container $ {}
       :ns $ quote
@@ -865,6 +865,8 @@
                 template-id $ get-in db ([] :game :template-id)
                 template $ get-in db ([] :templates template-id)
                 insertions $ -> template :slots (.to-list)
+                  .sort-by $ fn (pair)
+                    :order $ last pair
                   map $ fn (pair)
                     :text $ last
                       first $ :cards (last pair)
@@ -889,15 +891,14 @@
     |app.updater.template $ {}
       :ns $ quote
         ns app.updater.template $ :require
-          [] app.config :refer $ [] slot-matcher
-          [] clojure.string :as string
-          [] medley.core :refer $ [] dissoc-in
+          app.config :refer $ slot-pattern
+          regex.core :refer $ re-find-all re-split
       :defs $ {}
         |create-template $ quote
           defn create-template (db op-data sid op-id op-time session user)
             let
-                pieces $ do (; string/split op-data slot-matcher) (println "\"TODO") ([] "\"aaa" "\"bbb" "\"ccc")
-                slots $ do (println "\"TODO") (; re-seq slot-matcher op-data) ([] "\"X" "\"Y")
+                pieces $ re-split op-data slot-pattern
+                slots $ re-find-all op-data slot-pattern
                 data $ {} (:id op-id) (:text op-data) (:pieces pieces)
                   :slots $ -> slots
                     map-indexed $ fn (idx slot)
@@ -1079,4 +1080,5 @@
         |site $ quote
           def site $ {} (:port 11023) (:title "\"Patlepat") (:icon "\"http://cdn.tiye.me/logo/topix.png") (:theme "\"#eeeeff") (:storage-key "\"patlepat") (:storage-file "\"storage.cirru")
         |slot-matcher $ quote
-          def slot-matcher $ new js/RegExp "\"\\{[\\w\\s\\u4e00-\\u9fa5]+\\}"
+          def slot-matcher $ new js/RegExp slot-pattern
+        |slot-pattern $ quote (def slot-pattern "\"\\{[\\w\\s\\u4e00-\\u9fa5]+\\}")
