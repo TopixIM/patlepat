@@ -1,7 +1,7 @@
 
 {} (:package |app)
   :configs $ {} (:init-fn |app.client/main!) (:reload-fn |app.client/reload!)
-    :modules $ [] |respo.calcit/ |lilac/ |recollect/ |memof/ |respo-ui.calcit/ |ws-edn.calcit/ |cumulo-util.calcit/ |respo-message.calcit/ |cumulo-reel.calcit/
+    :modules $ [] |respo.calcit/ |lilac/ |recollect/ |memof/ |respo-ui.calcit/ |ws-edn.calcit/ |cumulo-util.calcit/ |respo-message.calcit/ |cumulo-reel.calcit/ |alerts.calcit/ |respo-feather.calcit/
     :version |0.0.1
   :entries $ {}
     :server $ {} (:port 6001) (:storage-key |calcit.cirru) (:init-fn |app.server/main!) (:reload-fn |app.server/reload!)
@@ -10,7 +10,7 @@
     |app.comp.container $ {}
       :ns $ quote
         ns app.comp.container $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.core :refer $ [] defcomp <> >> div span button
           [] respo.comp.inspect :refer $ [] comp-inspect
@@ -105,7 +105,7 @@
         |user $ quote
           def user $ {} (:name nil) (:id nil) (:nickname nil) (:avatar nil) (:password nil)
         |message $ quote
-          def message $ {} (:id nil) (:author-id nil) (:text "\"") (:type :message) (:time nil) (:blotted?)
+          def message $ {} (:id nil) (:author-id nil) (:text "\"") (:type :message) (:time nil) (:blotted? false)
         |template $ quote
           def template $ {} (:id nil) (:text "\"")
             :pieces $ []
@@ -139,31 +139,31 @@
             do (println "\"Found no data") schema/database
         |persist-db! $ quote
           defn persist-db! () $ let
-              file-content $ write-edn
+              file-content $ format-cirru-edn
                 assoc (:db @*reel) :sessions $ {}
               storage-path storage-file
               backup-path $ get-backup-path!
-            write-mildly! storage-path file-content
-            write-mildly! backup-path file-content
+            check-write-file! storage-path file-content
+            check-write-file! backup-path file-content
         |sync-clients! $ quote
           defn sync-clients! (reel)
-              wss-each! $ fn (sid)
-                let
-                    db $ :db reel
-                    records $ :records reel
-                    session $ get-in db ([] :sessions sid)
-                    old-store $ or (get @*client-caches sid) nil
-                    new-store $ twig-container db session records
-                    changes $ diff-twig old-store new-store
-                      {} $ :key :id
-                  ; when config/dev? $ println "\"Changes for" sid "\":" changes (count records)
-                  if
-                    not= changes $ []
-                    do
-                      wss-send! sid $ format-cirru-edn
-                        {} (:kind :patch) (:data changes)
-                      swap! *client-caches assoc sid new-store
-              new-twig-loop!
+            wss-each! $ fn (sid)
+              let
+                  db $ :db reel
+                  records $ :records reel
+                  session $ get-in db ([] :sessions sid)
+                  old-store $ or (get @*client-caches sid) nil
+                  new-store $ twig-container db session records
+                  changes $ diff-twig old-store new-store
+                    {} $ :key :id
+                ; when config/dev? $ println "\"Changes for" sid "\":" changes (count records)
+                if
+                  not= changes $ []
+                  do
+                    wss-send! sid $ format-cirru-edn
+                      {} (:kind :patch) (:data changes)
+                    swap! *client-caches assoc sid new-store
+            new-twig-loop!
         |storage-file $ quote
           def storage-file $ if (empty? calcit-dirname)
             str calcit-dirname $ :storage-file config/site
@@ -171,7 +171,7 @@
         |*reader-reel $ quote (defatom *reader-reel @*reel)
         |*reel $ quote
           defatom *reel $ merge reel-schema
-            {} (:base initial-db) (:db initial-db)
+            {} (:base @*initial-db) (:db @*initial-db)
         |main! $ quote
           defn main! ()
             println "\"Running mode:" $ if config/dev? "\"dev" "\"release"
@@ -196,7 +196,7 @@
           defn dispatch! (op op-data sid)
             let
                 op-id $ generate-id!
-                op-time $ -> (get-time!) (.timestamp)
+                op-time $ str (get-time!)
               if config/dev? $ println "\"Dispatch!" (str op) op-data sid
               if (= op :effect/persist) (persist-db!)
                 reset! *reel $ reel-reducer @*reel updater op op-data sid op-id op-time config/dev?
@@ -231,12 +231,11 @@
     |app.twig.container $ {}
       :ns $ quote
         ns app.twig.container $ :require
-          [] recollect.twig :refer $ [] deftwig
           [] app.twig.user :refer $ [] twig-user
           calcit.std.rand :refer $ rand-hex-color!
       :defs $ {}
         |twig-container $ quote
-          deftwig twig-container (db session records)
+          defn twig-container (db session records)
             let
                 logged-in? $ some? (:user-id session)
                 router $ :router session
@@ -248,10 +247,9 @@
                   :user $ twig-user
                     get-in db $ [] :users (:user-id session)
                   :router $ assoc router :data
-                    case (:name router)
+                    case-default (:name router) ({})
                       :home $ :pages db
                       :profile $ twig-members (:sessions db) (:users db)
-                      {}
                   :count $ count (:sessions db)
                   :color $ rand-hex-color!
                   :messages $ -> (:messages db)
@@ -262,7 +260,7 @@
                   :game $ :game db
                 {}
         |twig-members $ quote
-          deftwig twig-members (sessions users)
+          defn twig-members (sessions users)
             -> sessions $ map-kv
               fn (k session)
                 [] k $ get-in users
@@ -270,14 +268,14 @@
     |app.comp.chatroom $ {}
       :ns $ quote
         ns app.comp.chatroom $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.comp.space :refer $ [] =<
           [] respo.core :refer $ [] defcomp <> list-> span div textarea button a
           [] app.config :as config
           [] clojure.string :as string
           [] app.comp :refer $ [] comp-placeholder
-          [] "\"dayjs" :as dayjs
+          [] "\"dayjs" :default dayjs
           [] feather.core :refer $ [] comp-icon comp-i
       :defs $ {}
         |comp-chatroom $ quote
@@ -289,8 +287,8 @@
                 send-message $ fn (d!)
                   d! cursor $ assoc state :draft "\""
                   when
-                    not $ string/blank? (:draft state)
-                    d! :message/create $ string/trim (state :draft)
+                    not $ blank? (:draft state)
+                    d! :message/create $ trim (:draft state)
               div
                 {} $ :style
                   merge ui/expand ui/column
@@ -309,7 +307,7 @@
                     merge ui/expand $ {} (:padding-bottom 400)
                   loop
                       pairs $ -> messages (.to-list)
-                        sort-by $ fn (pair)
+                        .sort-by $ fn (pair)
                           :time $ last pair
                       last-user-id nil
                       acc $ []
@@ -324,7 +322,7 @@
                   textarea $ {}
                     :style $ merge ui/expand ui/textarea
                     :placeholder "\"text message..."
-                    :value $ state :draft
+                    :value $ :draft state
                     :on-input $ fn (e d!)
                       d! cursor $ assoc state :draft (:value e)
                     :on-keydown $ fn (e d!)
@@ -441,23 +439,20 @@
                   :template/remove-card template/remove-card
               f db op-data sid op-id op-time session user
     |app.twig.user $ {}
-      :ns $ quote
-        ns app.twig.user $ :require
-          [] recollect.twig :refer $ [] deftwig
+      :ns $ quote (ns app.twig.user)
       :defs $ {}
         |twig-user $ quote
-          deftwig twig-user (user) (dissoc user :password)
+          defn twig-user (user) (dissoc user :password)
     |app.comp.workspace $ {}
       :ns $ quote
         ns app.comp.workspace $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.comp.space :refer $ [] =<
           [] respo.core :refer $ [] defcomp >> list-> <> span div a button
           [] app.config :as config
           [] app.comp.templates :refer $ [] comp-templates comp-template-preview
           [] respo-alerts.core :refer $ [] use-prompt
-          [] clojure.string :as string
           [] app.comp :refer $ [] comp-tabs comp-placeholder
           [] feather.core :refer $ [] comp-icon
       :defs $ {}
@@ -475,9 +470,10 @@
                 comp-templates (>> states :templates) templates $ :template-id game
                 let
                     template $ get templates (:template-id game)
-                    has-next? $ ->> template :slots vals (map :cards)
+                    has-next? $ -> template :slots (.to-map) vals (.to-list)
+                      map $ fn (x) (:cards x)
                       every? $ fn (xs)
-                        pos? $ count xs
+                        not $ empty? xs
                   if (some? template)
                     div
                       {} $ :style
@@ -498,7 +494,9 @@
                       =< nil 20
                       list->
                         {} $ :style ui/row
-                        -> template :slots (.to-list) (sort-by :order)
+                        -> template :slots (.to-list)
+                          .sort-by $ fn (pair)
+                            :order $ last pair
                           map $ fn (pair)
                             let[] (k slot) pair $ [] k
                               comp-slot (>> states k) slot (:id template) (:id user)
@@ -522,25 +520,24 @@
                   =< 8 nil
                   a $ {} (:style ui/link) (:inner-text "\"增加卡片")
                     :on-click $ fn (e d!)
-                        :show create-plugin
-                        , d! $ fn (text)
-                          when-not (string/blank? text)
-                            d! :template/add-card $ {} (:template-id template-id) (:text text)
-                              :slot-id $ :id slot
+                      .show create-plugin d! $ fn (text)
+                        when-not (blank? text)
+                          d! :template/add-card $ {} (:template-id template-id) (:text text)
+                            :slot-id $ :id slot
                 list-> ({})
-                  ->> slot :cards $ map
-                    fn
-                        [] k card
+                  -> slot :cards
+                    map-kv $ fn (k card)
                       [] k $ comp-card card
                         = user-id $ :author-id card
                         fn (d!)
                           d! :template/remove-card $ {} (:template-id template-id)
                             :slot-id $ :id slot
                             :card-id $ :id card
+                    .to-list
                 if
                   empty? $ :cards slot
                   comp-placeholder "\"没有卡片"
-                :ui create-plugin
+                .render create-plugin
         |comp-card $ quote
           defcomp comp-card (card mine? on-remove)
             div
@@ -563,8 +560,10 @@
                       :font-size 12
                     fn (e d!) (on-remove d!)
                 <>
-                  string/replace (:text card) "#\"." "\"*"
+                  .!replace (:text card) pattern-any "\"*"
                   {} (:font-size 24) (:line-height "\"28px") (:font-family ui/font-code) (:vertical-align :middle)
+        |pattern-any $ quote
+          def pattern-any $ new js/RegExp "\"." "\"g"
     |app.updater.user $ {}
       :ns $ quote
         ns app.updater.user $ :require
@@ -572,7 +571,7 @@
           calcit.std.hash :refer $ md5
       :defs $ {}
         |log-in $ quote
-          defn log-in (db op-data sid op-id op-time)
+          defn log-in (db op-data sid op-id op-time s user)
             let-sugar
                   [] username password
                   , op-data
@@ -592,10 +591,10 @@
                       assoc messages op-id $ {} (:id op-id)
                         :text $ str "\"No user named: " username
         |log-out $ quote
-          defn log-out (db op-data sid op-id op-time)
+          defn log-out (db op-data sid op-id op-time session user)
             assoc-in db ([] :sessions sid :user-id) nil
         |sign-up $ quote
-          defn sign-up (db op-data sid op-id op-time)
+          defn sign-up (db op-data sid op-id op-time s user)
             let-sugar
                   [] username password
                   , op-data
@@ -617,7 +616,7 @@
     |app.comp.profile $ {}
       :ns $ quote
         ns app.comp.profile $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] app.schema :as schema
           [] respo-ui.core :as ui
           [] respo.core :refer $ [] defcomp list-> <> span div button a
@@ -640,9 +639,8 @@
                 =< 8 nil
                 list->
                   {} $ :style ui/row
-                  ->> members $ map
-                    fn
-                        [] k username
+                  -> members
+                    map-kv $ fn (k username)
                       [] k $ div
                         {} $ :style
                           {} (:padding "\"0 8px")
@@ -650,6 +648,7 @@
                             :border-radius "\"16px"
                             :margin "\"0 4px"
                         <> username
+                    .to-list
               =< nil 48
               div ({})
                 button
@@ -718,11 +717,12 @@
           defn on-submit (username password signup?)
             fn (e dispatch!)
               dispatch! (if signup? :user/sign-up :user/log-in) ([] username password)
-              .setItem js/localStorage (:storage-key config/site) ([] username password)
+              .!setItem js/localStorage (:storage-key config/site)
+                format-cirru-edn $ [] username password
     |app.comp.templates $ {}
       :ns $ quote
         ns app.comp.templates $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.comp.space :refer $ [] =<
           [] respo.core :refer $ [] defcomp list-> >> <> span div a
@@ -744,14 +744,12 @@
                   span nil
                   a $ {} (:inner-text "\"添加模板") (:style ui/link)
                     :on-click $ fn (e d!)
-                        :show template-editor
-                        , d! $ fn (text) (d! :template/create text)
+                      .show template-editor d! $ fn (text) (d! :template/create text)
                 list->
                   {} $ :style
                     {} $ :padding "\"0px 4px"
-                  ->> templates $ map
-                    fn
-                        [] k template
+                  -> templates
+                    map-kv $ fn (k template)
                       [] k $ div
                         {} $ :style
                           merge ui/row-parted
@@ -775,24 +773,23 @@
                             =< 8 nil
                             a $ {} (:style ui/link) (:inner-text "\"删除")
                               :on-click $ fn (e d!)
-                                  :show remove-plugin
-                                  , d! $ fn ()
-                                    d! :template/remove $ :id template
+                                .show remove-plugin d! $ fn ()
+                                  d! :template/remove $ :id template
+                    .to-list
                 if (empty? templates) (comp-placeholder "\"No tempaltes")
-                :ui template-editor
-                :ui remove-plugin
+                .render template-editor
+                .render remove-plugin
         |comp-template-preview $ quote
           defcomp comp-template-preview (template)
             list-> ({})
-              ->>
+              ->
                 interleave
-                  concat (:pieces template) (repeat 10 "\"")
-                  ->> (:slots template)
-                    map $ fn
-                        [] j slot
-                      :text slot
+                  concat (:pieces template) (repeat "\"" 10)
+                  -> (:slots template)
+                    .map-list $ fn (pair)
+                      :text $ last pair
                 map-indexed $ fn (idx item)
-                  [] idx $ if (re-matches config/slot-matcher item)
+                  [] idx $ if (.!test config/slot-matcher item)
                     <> item $ {}
                       :color $ hsl 200 80 70
                       :font-size 24
@@ -803,7 +800,7 @@
     |app.comp $ {}
       :ns $ quote
         ns app.comp $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.comp.space :refer $ [] =<
           [] respo.core :refer $ [] defcomp list-> >> <> span div
@@ -814,7 +811,7 @@
             list->
               {} $ :style
                 merge ui/row $ {} (:padding "\"8px 16px")
-              ->> tabs $ map
+              -> tabs $ map
                 fn (info)
                   [] (:name info)
                     div
@@ -840,48 +837,6 @@
                   :font-size 12
                   :font-style :italic
               <> text
-    |app.page $ {}
-      :ns $ quote
-        ns app.page
-          :require
-            [] respo.render.html :refer $ [] make-string
-            [] shell-page.core :refer $ [] make-page spit slurp
-            [] app.comp.container :refer $ [] comp-container
-            [] cljs.reader :refer $ [] read-string
-            [] app.schema :as schema
-            [] app.config :as config
-            [] cumulo-util.build :refer $ [] get-ip!
-          :require-macros $ [] clojure.core.strint :refer ([] <<)
-      :defs $ {}
-        |base-info $ quote
-          def base-info $ {}
-            :title $ :title config/site
-            :icon $ :icon config/site
-            :ssr nil
-            :inline-styles $ [] (slurp "\"entry/main.css")
-        |dev-page $ quote
-          defn dev-page () $ make-page "\""
-            merge base-info $ {}
-              :styles $ [] (<< "\"http://~(get-ip!):8100/main.css") "\"/entry/main.css"
-              :scripts $ [] "\"/client.js"
-              :inline-styles $ []
-        |main! $ quote
-          defn main! ()
-            println "\"Running mode:" $ if config/dev? "\"dev" "\"release"
-            if config/dev?
-              spit "\"target/index.html" $ dev-page
-              spit "\"dist/index.html" $ prod-page
-        |prod-page $ quote
-          defn prod-page () $ let
-              html-content $ make-string
-                comp-container ({}) nil
-              assets $ read-string (slurp "\"dist/assets.edn")
-              cdn $ if config/cdn? (:cdn-url config/site) "\""
-              prefix-cdn $ "#()" str cdn %
-            make-page html-content $ merge base-info
-              {}
-                :styles $ [] (:release-ui config/site)
-                :scripts $ map ("#()" -> % :output-name prefix-cdn) assets
     |app.updater.message $ {}
       :ns $ quote
         ns app.updater.message $ :require
@@ -898,8 +853,8 @@
             update db :messages $ fn (messages)
               assoc
                 -> messages (.to-list)
-                  sort-by $ fn (pair)
-                    unchecked-negate $ :time (last pair)
+                  .sort-by $ fn (pair)
+                    negate $ :time (last pair)
                   take 5
                   pairs-map
                 , op-id $ {} (:id op-id) (:text "\"清除了消息") (:time op-time) (:type :operation)
@@ -915,7 +870,7 @@
                       first $ :cards (last pair)
                 content $ .join-str
                   interleave
-                    concat (:pieces template) (repeat 10 "\"")
+                    concat (:pieces template) (repeat "\"" 10)
                     , insertions
                   , "\""
               -> db
@@ -941,11 +896,10 @@
         |create-template $ quote
           defn create-template (db op-data sid op-id op-time session user)
             let
-                pieces $ string/split op-data slot-matcher
-                slots $ re-seq slot-matcher op-data
-                data $ {} (:id op-id) (:text op-data)
-                  :pieces $ vec pieces
-                  :slots $ ->> slots
+                pieces $ do (; string/split op-data slot-matcher) (println "\"TODO") ([] "\"aaa" "\"bbb" "\"ccc")
+                slots $ do (println "\"TODO") (; re-seq slot-matcher op-data) ([] "\"X" "\"Y")
+                data $ {} (:id op-id) (:text op-data) (:pieces pieces)
+                  :slots $ -> slots
                     map-indexed $ fn (idx slot)
                       [] (str op-id "\"-" idx)
                         {}
@@ -953,7 +907,7 @@
                           :order idx
                           :text slot
                           :cards $ {}
-                    into $ {}
+                    pairs-map
               -> db
                 assoc-in ([] :templates op-id) data
                 assoc-in ([] :messages op-id)
@@ -992,7 +946,7 @@
     |app.comp.navigation $ {}
       :ns $ quote
         ns app.comp.navigation $ :require
-          [] hsl.core :refer $ [] hsl
+          [] respo-ui.core :refer $ [] hsl
           [] respo-ui.core :as ui
           [] respo.comp.space :refer $ [] =<
           [] respo.core :refer $ [] defcomp <> span div
@@ -1023,123 +977,106 @@
       :ns $ quote (ns app.updater.router)
       :defs $ {}
         |change $ quote
-          defn change (db op-data sid op-id op-time)
+          defn change (db op-data sid op-id op-time session user)
             assoc-in db ([] :sessions sid :router) op-data
     |app.updater.session $ {}
       :ns $ quote
         ns app.updater.session $ :require ([] app.schema :as schema)
       :defs $ {}
         |connect $ quote
-          defn connect (db op-data sid op-id op-time)
+          defn connect (db op-data sid op-id op-time s user)
             assoc-in db ([] :sessions sid)
               merge schema/session $ {} (:id sid)
         |disconnect $ quote
-          defn disconnect (db op-data sid op-id op-time)
+          defn disconnect (db op-data sid op-id op-time session user)
             update db :sessions $ fn (session) (dissoc session sid)
         |remove-message $ quote
-          defn remove-message (db op-data sid op-id op-time)
+          defn remove-message (db op-data sid op-id op-time session user)
             update-in db ([] :sessions sid :messages)
               fn (messages)
                 dissoc messages $ :id op-data
     |app.client $ {}
       :ns $ quote
-        ns app.client
-          :require
-            [] respo.core :refer $ [] render! clear-cache! realize-ssr!
-            [] respo.cursor :refer $ [] update-states
-            [] app.comp.container :refer $ [] comp-container
-            [] cljs.reader :refer $ [] read-string
-            [] app.schema :as schema
-            [] app.config :as config
-            [] ws-edn.client :refer $ [] ws-connect! ws-send!
-            [] recollect.patch :refer $ [] patch-twig
-            [] cumulo-util.core :refer $ [] on-page-touch
-            [] "\"url-parse" :as url-parse
-            [] applied-science.js-interop :as j
-          :require-macros $ [] clojure.core.strint :refer ([] <<)
+        ns app.client $ :require
+          [] respo.core :refer $ [] render! clear-cache! realize-ssr!
+          [] respo.cursor :refer $ [] update-states
+          [] app.comp.container :refer $ [] comp-container
+          [] cljs.reader :refer $ [] read-string
+          [] app.schema :as schema
+          [] app.config :as config
+          [] ws-edn.client :refer $ [] ws-connect! ws-send!
+          [] recollect.patch :refer $ [] patch-twig
+          [] cumulo-util.core :refer $ [] on-page-touch
+          [] "\"url-parse" :default url-parse
+          "\"bottom-tip" :default hud!
+          "\"./calcit.build-errors" :default client-errors
       :defs $ {}
         |render-app! $ quote
-          defn render-app! (renderer)
-            renderer mount-target
-              comp-container (:states @*states) @*store
-              , dispatch!
-        |ssr? $ quote
-          def ssr? $ some? (.querySelector js/document "\"meta.respo-ssr")
+          defn render-app! () $ render! mount-target
+            comp-container (:states @*states) @*store
+            , dispatch!
         |*states $ quote
-          defonce *states $ atom
-            {} $ :states
-              {} $ :cursor ([])
+          defatom *states $ {}
+            :states $ {}
+              :cursor $ []
         |mount-target $ quote
           def mount-target $ .querySelector js/document "\".app"
         |connect! $ quote
           defn connect! () $ let
               url-obj $ url-parse js/location.href true
-              host $ or
-                j/get-in url-obj $ [] :query :host
-                , js/location.hostname
-              port $ or
-                j/get-in url-obj $ [] :query :port
-                :port config/site
-            ws-connect! (<< "\"ws://~{host}:~{port}")
+              host $ either (-> url-obj .-query .-host) js/location.hostname
+              port $ either (-> url-obj .-query .-port) (:port config/site)
+            ws-connect! (str "\"ws://" host "\":" port)
               {}
-                :on-open $ fn () (simulate-login!)
+                :on-open $ fn (event) (simulate-login!)
                 :on-close $ fn (event) (reset! *store nil) (js/console.error "\"Lost connection!")
-                :on-data $ fn (data)
-                  case (:kind data)
-                    :patch $ let
-                        changes $ :data data
-                      when config/dev? $ js/console.log "\"Changes" (clj->js changes)
-                      reset! *store $ patch-twig @*store changes
-                    println "\"unknown kind:" data
+                :on-data on-server-data
         |main! $ quote
           defn main! ()
             println "\"Running mode:" $ if config/dev? "\"dev" "\"release"
-            if ssr? $ render-app! realize-ssr!
-            render-app! render!
+            render-app!
             connect!
-            add-watch *store :changes $ "#()" render-app! render!
-            add-watch *states :changes $ "#()" render-app! render!
-            on-page-touch $ "#()" if (nil? @*store) (connect!)
+            add-watch *store :changes $ fn (store prev) (render-app!)
+            add-watch *states :changes $ fn (states prev) (render-app!)
+            on-page-touch $ fn ()
+              if (nil? @*store) (connect!)
             println "\"App started!"
-        |*store $ quote
-          defonce *store $ atom nil
+        |*store $ quote (defatom *store nil)
         |dispatch! $ quote
           defn dispatch! (op op-data)
             when
               and config/dev? $ not= op :states
               println "\"Dispatch" op op-data
-            case op
+            case-default op
+              ws-send! $ {} (:kind :op) (:op op) (:data op-data)
               :states $ reset! *states (update-states @*states op-data)
               :effect/connect $ connect!
-              ws-send! $ {} (:kind :op) (:op op) (:data op-data)
+        |on-server-data $ quote
+          defn on-server-data (data)
+            case-default (:kind data) (println "\"unknown server data kind:" data)
+              :patch $ let
+                  changes $ :data data
+                when config/dev? $ js/console.log "\"Changes" (to-js-data changes)
+                reset! *store $ patch-twig @*store changes
         |simulate-login! $ quote
           defn simulate-login! () $ let
-              raw $ .getItem js/localStorage (:storage-key config/site)
+              raw $ .!getItem js/localStorage (:storage-key config/site)
             if (some? raw)
               do (println "\"Found storage.")
-                dispatch! :user/log-in $ read-string raw
+                dispatch! :user/log-in $ parse-cirru-edn raw
               do $ println "\"Found no storage."
         |reload! $ quote
-          defn reload! () (clear-cache!) (render-app! render!) (println "\"Code updated.")
+          defn reload! () $ if (some? client-errors) (hud! "\"error" client-errors)
+            do (hud! "\"inactive" nil) (remove-watch *store :changes) (remove-watch *states :changes) (clear-cache!) (render-app!)
+              add-watch *store :changes $ fn (store prev) (render-app!)
+              add-watch *states :changes $ fn (states prev) (render-app!)
+              println "\"Code updated."
     |app.config $ {}
       :ns $ quote (ns app.config)
       :defs $ {}
-        |cdn? $ quote
-          def cdn? $ cond
-              exists? js/window
-              , false
-            (exists? js/process) (= "\"true" js/process.env.cdn)
-            :else false
         |dev? $ quote
-          def dev? $ let
-              debug? $ do ^boolean js/goog.DEBUG
-            if debug?
-              cond
-                  exists? js/window
-                  , true
-                (exists? js/process) (not= "\"true" js/process.env.release)
-                :else true
-              , false
+          def dev? $ = "\"dev" (get-env "\"mode")
         |site $ quote
-          def site $ {} (:port 11023) (:title "\"Patlepat") (:icon "\"http://cdn.tiye.me/logo/topix.png") (:dev-ui "\"http://localhost:8100/main.css") (:release-ui "\"http://cdn.tiye.me/favored-fonts/main.css") (:cdn-url "\"http://cdn.tiye.me/patlepat/") (:theme "\"#eeeeff") (:storage-key "\"patlepat") (:storage-file "\"storage.edn")
-        |slot-matcher $ quote (def slot-matcher "#\"\\{[\\w\\s\\u4e00-\\u9fa5]+\\}")
+          def site $ {} (:port 11023) (:title "\"Patlepat") (:icon "\"http://cdn.tiye.me/logo/topix.png") (:theme "\"#eeeeff") (:storage-key "\"patlepat") (:storage-file "\"storage.cirru")
+        |slot-matcher $ quote
+          def slot-matcher $ new js/RegExp "\"\\{[\\w\\s\\u4e00-\\u9fa5]+\\}"
