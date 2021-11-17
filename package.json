@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@calcit/procs": "^0.5.4"
+    "@calcit/procs": "^0.5.8"
   },
   "scripts": {
     "compile-page": "cr --emit-js --once",
@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "bottom-tip": "^0.1.2",
-    "dayjs": "^1.8.28",
+    "dayjs": "^1.10.7",
     "feather-icons": "^4.28.0",
     "url-parse": "^1.5.3",
     "vite": "^2.6.14"
