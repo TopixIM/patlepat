@@ -157,7 +157,7 @@
                               = selected $ &map:get info :name
                               {} (:font-weight 500)
                                 :color $ hsl 0 0 30
-                              , {}
+                              {}
                           :on-click $ fn (e d!)
                             d! :router/change $ {}
                               :name $ &map:get info :name
@@ -174,6 +174,15 @@
             [] app.config :as config
     'app.comp.chatroom $ %{} 'FileEntry
       :defs $ {}
+        'DayjsHost $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            deftrait DayjsHost $ .format
+              :: 'Fn $ {}
+                :args $ [] 'String
+                :return 'String
+          :examples $ []
+          :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
+          :schema $ :: 'Trait
         'comp-chatroom $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defcomp comp-chatroom (states messages styles)
@@ -203,16 +212,16 @@
                     {} $ :style
                       merge ui/expand $ {} (:padding-bottom 400)
                     loop
-                        pairs $ -> messages (.to-list)
+                        pairs $ -> (unsafe-coerce messages 'Map) (&map:to-list)
                           .sort-by $ fn (pair)
                             schema/read-field
-                              option:unwrap-or (last pair) {}
+                              option:unwrap-or (last pair) ({})
                               , :time
                         last-user-id nil
                         acc $ []
                       if (empty? pairs) acc $ let
                           pair $ option:unwrap-or (first pairs) []
-                          message $ option:unwrap-or (last pair) {}
+                          message $ option:unwrap-or (last pair) ({})
                         recur (rest pairs) (schema/read-field message :author-id)
                           conj acc $ [] (schema/read-field message :time)
                             comp-message message $ = last-user-id (schema/read-field message :author-id)
@@ -248,7 +257,7 @@
                     :inner-text $ str
                       or
                         schema/read-field
-                          option:unwrap-or (get message :user) {}
+                          option:unwrap-or (get message :user) ({})
                           , :name
                         , |GUEST
                     :style $ merge
@@ -269,7 +278,11 @@
                       <> $ schema/read-field message :text
                     =< 8 nil
                     <>
-                      -> (schema/read-field message :time) dayjs $ .format |HH:mm:ss
+                      ->
+                        unsafe-coerce
+                          dayjs $ schema/read-field message :time
+                          , DayjsHost
+                        .format |HH:mm:ss
                       {}
                         :color $ hsl 0 0 80
                         :font-size 12
@@ -362,7 +375,7 @@
                       unsafe-coerce
                         option:unwrap-or
                           get-in store $ [] :session :messages
-                          , {}
+                          {}
                         :: Map String Dynamic
                       {}
                       fn (info d!) (d! :session/remove-message info)
@@ -584,7 +597,7 @@
                     -> (schema/read-field template :slots) (&map:to-list)
                       map $ fn (pair)
                         schema/read-field
-                          option:unwrap-or (last pair) {}
+                          option:unwrap-or (last pair) ({})
                           , :text
                   map-indexed $ fn (idx item)
                     [] idx $ if (.!test config/slot-matcher item)
@@ -626,7 +639,7 @@
                               schema/style-map $ if
                                 = selected $ schema/read-field template :id
                                 {} $ :background-color (hsl 0 0 97)
-                                , {}
+                                {}
                           div ({}) (comp-template-preview template)
                             div ({})
                               <> (schema/read-field template :text)
@@ -744,7 +757,7 @@
                   comp-templates (>> states :templates) templates $ schema/read-field game :template-id
                   let
                       maybe-template $ get templates (schema/read-field game :template-id)
-                      template $ option:unwrap-or maybe-template {}
+                      template $ option:unwrap-or maybe-template ({})
                       has-next? $ -> (schema/read-field template :slots) (&map:to-list)
                         map $ fn (pair)
                           schema/read-field (last pair) :cards
@@ -774,7 +787,7 @@
                           -> (schema/read-field template :slots) (&map:to-list)
                             .sort-by $ fn (pair)
                               schema/read-field
-                                option:unwrap-or (last pair) {}
+                                option:unwrap-or (last pair) ({})
                                 , :order
                             map $ fn (pair)
                               let[] (k slot) pair $ [] k
@@ -974,7 +987,7 @@
           :code $ quote
             defn persist-db! () $ let
                 file-content $ format-cirru-edn
-                  assoc (&struct:get @*reel :db) :sessions $ {}
+                  assoc (:db @*reel) :sessions $ {}
                 storage-path storage-file
                 backup-path $ get-backup-path!
               check-write-file! storage-path file-content
@@ -1028,8 +1041,8 @@
             defn sync-clients! (reel) (begin-twig-frame!)
               wss-each! $ fn (sid)
                 let
-                    db $ &struct:get reel :db
-                    records $ &struct:get reel :records
+                    db $ :db reel
+                    records $ :records reel
                     session $ get-in db ([] :sessions sid)
                     old-store $ or (get @*client-caches sid) nil
                     new-store $ twig-container db session records
@@ -1044,7 +1057,9 @@
                       swap! *client-caches assoc sid new-store
               finish-twig-frame!
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Fn
+            {} (:return 'Unit)
+              :args $ [] 'cumulo-reel.core/ReelState
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
           ns app.server $ :require (app.schema :as schema)
@@ -1067,37 +1082,45 @@
           :code $ quote
             defn twig-container (db session records)
               let
-                  logged-in? $ some? (:user-id session)
-                  router $ :router session
-                  base-data $ {} (:logged-in? logged-in?) (:session session)
+                  session-map $ unsafe-coerce
+                    option:unwrap-or session $ {}
+                    , 'Map
+                  logged-in? $ some? (&map:get session-map :user-id)
+                  router $ unsafe-coerce (&map:get session-map :router) 'Map
+                  base-data $ {} (:logged-in? logged-in?) (:session session-map)
                     :reel-length $ count records
-                  users $ :users db
+                  users $ &map:get db :users
                 merge base-data $ if logged-in?
                   {}
                     :user $ twig-user
-                      get-in db $ [] :users (:user-id session)
+                      option:unwrap-or
+                        get-in db $ [] :users (&map:get session-map :user-id)
+                        {}
                     :router $ assoc router :data
                       case-default (&map:get router :name) ({})
-                        :home $ :pages db
-                        :profile $ twig-members (:sessions db) (:users db)
-                    :count $ count (:sessions db)
+                        :home $ &map:get db :pages
+                        :profile $ twig-members (&map:get db :sessions) (&map:get db :users)
+                    :count $ count (&map:get db :sessions)
                     :color $ rand-hex-color!
-                    :messages $ -> (:messages db)
+                    :messages $ -> (&map:get db :messages)
                       map-kv $ fn (k message)
                         [] k $ assoc message :user
-                          twig-user $ get users (&map:get message :author-id)
-                    :templates $ :templates db
-                    :game $ :game db
-                  {}
+                          twig-user $ option:unwrap-or
+                            get users $ &map:get message :author-id
+                            {}
+                    :templates $ &map:get db :templates
+                    :game $ &map:get db :game
+                  , nil
           :examples $ []
           :schema $ :: 'Dynamic
         'twig-members $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn twig-members (sessions users)
-              -> sessions $ map-kv
-                fn (k session)
-                  [] k $ get-in users
-                    [] (:user-id session) :name
+              -> sessions (&map:to-list)
+                .map-pair $ fn (k session)
+                  [] k $ option:unwrap-or
+                    get-in users $ [] (&map:get session :user-id) :name
+                    , |
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -1118,32 +1141,36 @@
       :defs $ {}
         'updater $ %{} 'CodeEntry (:doc |)
           :code $ quote
-            defn updater (db op op-data sid op-id op-time)
+            defn updater (db op sid op-id op-time)
               let
-                  session $ get-in db ([] :sessions sid)
-                  user-id $ :user-id session
-                  user $ if (some? user-id)
-                    get-in db $ [] :users user-id
-                    , nil
-                  f $ case-default op
-                    fn (& args) (println "|Unknown op:" op) db
-                    :session/connect session/connect
-                    :session/disconnect session/disconnect
-                    :session/remove-message session/remove-message
-                    :user/log-in user/log-in
-                    :user/sign-up user/sign-up
-                    :user/log-out user/log-out
-                    :router/change router/change
-                    :message/create message/create-message
-                    :message/clear message/clear
-                    :message/blot-out message/blot-out
-                    :message/show-result message/show-result
-                    :template/create template/create-template
-                    :template/remove template/remove-template
-                    :template/choose template/choose
-                    :template/add-card template/add-card
-                    :template/remove-card template/remove-card
-                f db op-data sid op-id op-time session user
+                  session-data $ unsafe-coerce
+                    option:unwrap-or
+                      get-in db $ [] :sessions sid
+                      {}
+                    , 'Map
+                  user-id $ &map:get session-data :user-id
+                  user-data $ if (nil? user-id) nil
+                    option:unwrap-or
+                      get-in db $ [] :users user-id
+                      , nil
+                match op
+                  (:session/connect) (session/connect db nil sid op-id op-time session-data user-data)
+                  (:session/disconnect) (session/disconnect db nil sid op-id op-time session-data user-data)
+                  (:session/remove-message op-data) (session/remove-message db op-data sid op-id op-time session-data user-data)
+                  (:user/log-in op-data) (user/log-in db op-data sid op-id op-time session-data user-data)
+                  (:user/sign-up op-data) (user/sign-up db op-data sid op-id op-time session-data user-data)
+                  (:user/log-out op-data) (user/log-out db op-data sid op-id op-time session-data user-data)
+                  (:router/change op-data) (router/change db op-data sid op-id op-time session-data user-data)
+                  (:message/create op-data) (message/create-message db op-data sid op-id op-time session-data user-data)
+                  (:message/clear op-data) (message/clear db op-data sid op-id op-time session-data user-data)
+                  (:message/blot-out op-data) (message/blot-out db op-data sid op-id op-time session-data user-data)
+                  (:message/show-result op-data) (message/show-result db op-data sid op-id op-time session-data user-data)
+                  (:template/create op-data) (template/create-template db op-data sid op-id op-time session-data user-data)
+                  (:template/remove op-data) (template/remove-template db op-data sid op-id op-time session-data user-data)
+                  (:template/choose op-data) (template/choose db op-data sid op-id op-time session-data user-data)
+                  (:template/add-card op-data) (template/add-card db op-data sid op-id op-time session-data user-data)
+                  (:template/remove-card op-data) (template/remove-card db op-data sid op-id op-time session-data user-data)
+                  _ $ do (eprintln "|Unknown op:" op) db
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -1165,10 +1192,10 @@
             defn clear (db op-data sid op-id op-time session user)
               update db :messages $ fn (messages)
                 assoc
-                  -> messages (.to-list)
+                  -> (unsafe-coerce messages 'Map) (&map:to-list)
                     .sort-by $ fn (pair)
                       negate $ schema/read-field
-                        option:unwrap-or (last pair) {}
+                        option:unwrap-or (last pair) ({})
                         , :time
                     take 5
                     pairs-map
@@ -1195,15 +1222,15 @@
                     , nil
                   template $ option:unwrap-or
                     get-in db $ [] :templates template-id
-                    , {}
+                    {}
                   insertions $ -> (schema/read-field template :slots) (&map:to-list)
                     .sort-by $ fn (pair)
                       schema/read-field
-                        option:unwrap-or (last pair) {}
+                        option:unwrap-or (last pair) ({})
                         , :order
                     map $ fn (pair)
                       let
-                          slot $ option:unwrap-or (last pair) {}
+                          slot $ option:unwrap-or (last pair) ({})
                           cards $ schema/read-field slot :cards
                           card-pair $ option:unwrap-or
                             first $ &map:to-list cards
@@ -1220,11 +1247,14 @@
                     {} (:id op-id) (:time op-time) (:text content) (:type :quote)
                   update-in ([] :templates template-id :slots)
                     fn (slots)
-                      -> slots $ map-kv
-                        fn (k slot)
+                      ->
+                        unsafe-coerce
+                          option:unwrap-or slots $ {}
+                          , 'Map
+                        map-kv $ fn (k slot)
                           [] k $ update slot :cards
                             fn (cards)
-                              -> cards (.to-list) (rest) (pairs-map)
+                              -> (unsafe-coerce cards 'Map) (&map:to-list) (rest) (pairs-map)
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -1260,7 +1290,9 @@
             defn remove-message (db op-data sid op-id op-time session user)
               update-in db ([] :sessions sid :messages)
                 fn (messages)
-                  dissoc messages $ :id op-data
+                  dissoc
+                    option:unwrap-or messages $ {}
+                    &map:get op-data :id
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -1272,11 +1304,11 @@
           :code $ quote
             defn add-card (db op-data sid op-id op-time session user)
               assoc-in db
-                [] :templates (:template-id op-data) :slots (:slot-id op-data) :cards op-id
+                [] :templates (&map:get op-data :template-id) :slots (&map:get op-data :slot-id) :cards op-id
                 {} (:id op-id)
-                  :text $ :text op-data
+                  :text $ &map:get op-data :text
                   :time op-time
-                  :author-id $ :user-id session
+                  :author-id $ &map:get session :user-id
           :examples $ []
           :schema $ :: 'Dynamic
         'choose $ %{} 'CodeEntry (:doc |)
@@ -1286,7 +1318,7 @@
                 assoc-in ([] :game :template-id) op-data
                 assoc-in ([] :messages op-id)
                   {} (:type :operation) (:id op-id) (:time op-time)
-                    :author-id $ :user-id session
+                    :author-id $ &map:get session :user-id
                     :text $ str "|切换了模板: "
                       get-in db $ [] :templates op-data :text
           :examples $ []
@@ -1311,14 +1343,14 @@
                   assoc-in ([] :templates op-id) data
                   assoc-in ([] :messages op-id)
                     {} (:type :operation) (:id op-id) (:time op-time)
-                      :author-id $ :user-id session
+                      :author-id $ &map:get session :user-id
                       :text $ str "|创建了模板: " op-data
           :examples $ []
           :schema $ :: 'Dynamic
         'remove-card $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn remove-card (db op-data sid op-id op-time session user)
-              dissoc-in db $ [] :templates (:template-id op-data) :slots (:slot-id op-data) :cards (:card-id op-data)
+              dissoc-in db $ [] :templates (&map:get op-data :template-id) :slots (&map:get op-data :slot-id) :cards (&map:get op-data :card-id)
           :examples $ []
           :schema $ :: 'Dynamic
         'remove-template $ %{} 'CodeEntry (:doc |)
@@ -1328,7 +1360,7 @@
                 dissoc-in $ [] :templates op-data
                 assoc-in ([] :messages op-id)
                   {} (:type :operation) (:id op-id) (:time op-time)
-                    :author-id $ :user-id session
+                    :author-id $ &map:get session :user-id
                     :text $ str "|删除了模板: "
                       get-in db $ [] :templates op-data :text
           :examples $ []
@@ -1340,27 +1372,49 @@
             regex.core :refer $ re-find-all re-split
     'app.updater.user $ %{} 'FileEntry
       :defs $ {}
+        'as-user-map $ %{} 'CodeEntry (:doc |)
+          :code $ quote
+            defn as-user-map (user) (unsafe-coerce user 'Map)
+          :examples $ []
+          :schema $ :: 'Fn
+            {} (:return 'Map)
+              :args $ [] 'Dynamic
         'log-in $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn log-in (db op-data sid op-id op-time s user)
               let-sugar
                     [] username password
                     , op-data
-                  maybe-user $ -> (:users db) (vals) (.to-list)
+                  maybe-user $ -> (&map:get db :users) (vals) (.to-list)
                     find $ fn (user)
-                      and $ = username (&map:get user :name)
+                      = username $ &map:get (as-user-map user) :name
                 update-in db ([] :sessions sid)
                   fn (session)
-                    if (some? maybe-user)
+                    if (option:some? maybe-user)
                       if
-                        = (md5 password) (:password maybe-user)
-                        assoc session :user-id $ :id maybe-user
-                        update session :messages $ fn (messages)
-                          assoc messages op-id $ {} (:id op-id)
-                            :text $ str "|Wrong password for " username
-                      update session :messages $ fn (messages)
-                        assoc messages op-id $ {} (:id op-id)
-                          :text $ str "|No user named: " username
+                        = (md5 password)
+                          &map:get
+                            as-user-map $ option:unwrap maybe-user
+                            , :password
+                        assoc
+                          option:unwrap-or session $ {}
+                          , :user-id $ &map:get
+                            as-user-map $ option:unwrap maybe-user
+                            , :id
+                        update
+                          option:unwrap-or session $ {}
+                          , :messages $ fn (messages)
+                            assoc
+                              option:unwrap-or messages $ {}
+                              , op-id $ {} (:id op-id)
+                                :text $ str "|Wrong password for " username
+                      update
+                        option:unwrap-or session $ {}
+                        , :messages $ fn (messages)
+                          assoc
+                            option:unwrap-or messages $ {}
+                            , op-id $ {} (:id op-id)
+                              :text $ str "|No user named: " username
           :examples $ []
           :schema $ :: 'Dynamic
         'log-out $ %{} 'CodeEntry (:doc |)
@@ -1376,14 +1430,16 @@
                     [] username password
                     , op-data
                   maybe-user $ find
-                    vals $ :users db
+                    -> (&map:get db :users) vals .to-list
                     fn (user)
-                      = username $ :name user
-                if (some? maybe-user)
+                      = username $ &map:get (as-user-map user) :name
+                if (option:some? maybe-user)
                   update-in db ([] :sessions sid :messages)
                     fn (messages)
-                      assoc messages op-id $ {} (:id op-id)
-                        :text $ str "|Name is taken: " username
+                      assoc
+                        option:unwrap-or messages $ {}
+                        , op-id $ {} (:id op-id)
+                          :text $ str "|Name is taken: " username
                   -> db
                     assoc-in ([] :sessions sid :user-id) op-id
                     assoc-in ([] :users op-id)
