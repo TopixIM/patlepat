@@ -146,26 +146,27 @@
                   merge ui/row $ {} (:padding "|8px 16px")
                 -> tabs $ map
                   fn (info)
-                    [] (:name info)
+                    [] (&map:get info :name)
                       div
                         {}
                           :style $ merge
-                            {} (:padding "|0 8px") (:font-family ui/font-fancy) (:font-weight 300) (:cursor :pointer) (:font-size 16)
+                            schema/style-map $ {} (:padding "|0 8px") (:font-family ui/font-fancy) (:font-weight 300) (:cursor :pointer) (:font-size 16)
                               :color $ hsl 0 0 70
                               :line-height |32px
-                            if
-                              = selected $ :name info
+                            schema/style-map $ if
+                              = selected $ &map:get info :name
                               {} (:font-weight 500)
                                 :color $ hsl 0 0 30
+                              , {}
                           :on-click $ fn (e d!)
                             d! :router/change $ {}
-                              :name $ :name info
-                        <> $ :title info
+                              :name $ &map:get info :name
+                        <> $ &map:get info :title
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
-          ns app.comp $ :require
+          ns app.comp $ :require ([] app.schema :as schema)
             [] respo-ui.core :refer $ [] hsl
             [] respo-ui.core :as ui
             [] respo.comp.space :refer $ [] =<
@@ -177,14 +178,14 @@
           :code $ quote
             defcomp comp-chatroom (states messages styles)
               let
-                  cursor $ &map:get states :cursor
-                  state $ or (&map:get states :data)
+                  cursor $ schema/read-field states :cursor
+                  state $ or (schema/read-field states :data)
                     {} $ :draft |
                   send-message $ fn (d!)
                     d! cursor $ assoc state :draft |
                     when
-                      not $ blank? (&map:get state :draft)
-                      d! :message/create $ trim (&map:get state :draft)
+                      not $ blank? (schema/read-field state :draft)
+                      d! :message/create $ trim (schema/read-field state :draft)
                 div
                   {} $ :style
                     merge ui/expand ui/column
@@ -204,21 +205,25 @@
                     loop
                         pairs $ -> messages (.to-list)
                           .sort-by $ fn (pair)
-                            :time $ last pair
+                            schema/read-field
+                              option:unwrap-or (last pair) {}
+                              , :time
                         last-user-id nil
                         acc $ []
                       if (empty? pairs) acc $ let
-                          message $ last (first pairs)
-                        recur (rest pairs) (:author-id message)
-                          conj acc $ [] (:time message)
-                            comp-message message $ = last-user-id (:author-id message)
+                          pair $ option:unwrap-or (first pairs) []
+                          message $ option:unwrap-or (last pair) {}
+                        recur (rest pairs) (schema/read-field message :author-id)
+                          conj acc $ [] (schema/read-field message :time)
+                            comp-message message $ = last-user-id (schema/read-field message :author-id)
                   div
                     {} $ :style
-                      merge ui/row $ {} (:align-items :flex-start)
+                      merge (schema/style-map ui/row)
+                        schema/style-map $ {} (:align-items :flex-start)
                     textarea $ {}
                       :style $ merge ui/expand ui/textarea
                       :placeholder "|text message..."
-                      :value $ &map:get state :draft
+                      :value $ schema/read-field state :draft
                       :on-input $ fn (e d!)
                         d! cursor $ assoc state :draft
                           option:unwrap-or (get e :value) |
@@ -235,41 +240,45 @@
         'comp-message $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defcomp comp-message (message merged?)
-              case (:type message)
+              case (schema/read-field message :type)
                 :message $ div
                   {} $ :style
                     merge ui/row $ {} (:margin "|4px 0")
                   span $ {}
                     :inner-text $ str
                       or
-                        :name $ :user message
+                        schema/read-field
+                          option:unwrap-or (get message :user) {}
+                          , :name
                         , |GUEST
                     :style $ merge
-                      {} (:padding "|0px 8px")
+                      schema/style-map $ {} (:padding "|0px 8px")
                         :background-color $ hsl 0 0 94
                         :border-radius |12px
-                      if merged? $ {} (:opacity 0)
+                      schema/style-map $ if merged?
+                        {} $ :opacity 0
+                        {}
                   =< 8 nil
                   div
                     {} $ :style ui/expand
-                    if (:blotted? message)
-                      <> (:id message)
+                    if (schema/read-field message :blotted?)
+                      <> (schema/read-field message :id)
                         {}
                           :color $ hsl 0 0 80
                           :text-decoration :line-through
-                      <> $ :text message
+                      <> $ schema/read-field message :text
                     =< 8 nil
                     <>
-                      -> message :time dayjs $ .format |HH:mm:ss
+                      -> (schema/read-field message :time) dayjs $ .format |HH:mm:ss
                       {}
                         :color $ hsl 0 0 80
                         :font-size 12
                         :font-family ui/font-fancy
-                    if-not (:blotted? message)
+                    if-not (schema/read-field message :blotted?)
                       span
                         {} (:class-name |invisible-link)
                           :on-click $ fn (e d!)
-                            d! :message/blot-out $ :id message
+                            d! :message/blot-out $ schema/read-field message :id
                         comp-i :x 10 $ hsl 0 80 80
                 :quote $ div
                   {} $ :style
@@ -288,14 +297,14 @@
                           :border-radius |6px
                           :font-size 20
                           :line-height |30px
-                      <> $ :text message
+                      <> $ schema/read-field message :text
                 :operation $ div
                   {} $ :style
                     merge ui/center $ {} (:margin "|8px 0")
                   <>
                     str
                       get-in message $ [] :user :name
-                      , "| " $ :text message
+                      , "| " $ schema/read-field message :text
                     {}
                       :color $ hsl 0 0 100
                       :background-color $ hsl 0 0 88
@@ -303,12 +312,12 @@
                       :font-size 12
                       :line-height |20px
                       :border-radius |4px
-                <> $ str "|Unknown message type: " (:type message)
+                <> $ str "|Unknown message type: " (schema/read-field message :type)
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
-          ns app.comp.chatroom $ :require
+          ns app.comp.chatroom $ :require ([] app.schema :as schema)
             [] respo-ui.core :refer $ [] hsl
             [] respo-ui.core :as ui
             [] respo.comp.space :refer $ [] =<
@@ -324,36 +333,40 @@
           :code $ quote
             defcomp comp-container (states store)
               let
-                  state $ :data states
-                  session $ :session store
-                  router $ :router store
-                  router-data $ :data router
+                  state $ &map:get states :data
+                  session $ &map:get store :session
+                  router $ &map:get store :router
+                  router-data $ &map:get router :data
                   render-body $ fn ()
                     div
                       {} $ :style (merge ui/expand ui/row)
-                      comp-workspace (>> states :workspace) router (:templates store) (:game store) (:user store)
-                      comp-chatroom (>> states :chat) (:messages store)
+                      comp-workspace (>> states :workspace) router (&map:get store :templates) (&map:get store :game) (&map:get store :user)
+                      comp-chatroom (>> states :chat) (&map:get store :messages)
                         {} $ :border-left
                           str "|1px solid " $ hsl 0 0 90
                 if (nil? store) (comp-offline)
                   div
                     {} $ :style (merge ui/global ui/fullscreen ui/column)
-                    comp-navigation (:logged-in? store) (:count store)
-                    if (:logged-in? store)
-                      case (:name router)
+                    comp-navigation (&map:get store :logged-in?) (&map:get store :count)
+                    if (&map:get store :logged-in?)
+                      case (&map:get router :name)
                         :home $ render-body
                         :templates $ render-body
-                        :profile $ comp-profile (:user store) (:data router)
+                        :profile $ comp-profile (&map:get store :user) (&map:get router :data)
                         <> router
                       comp-login $ >> states :login
-                    comp-status-color $ :color store
+                    comp-status-color $ &map:get store :color
                     when dev? $ comp-inspect |Store store
                       {} (:bottom 0) (:left 0) (:max-width |100%)
                     comp-messages
-                      get-in store $ [] :session :messages
+                      unsafe-coerce
+                        option:unwrap-or
+                          get-in store $ [] :session :messages
+                          , {}
+                        :: Map String Dynamic
                       {}
                       fn (info d!) (d! :session/remove-message info)
-                    when dev? $ comp-reel (:reel-length store) ({})
+                    when dev? $ comp-reel (&map:get store :reel-length) ({})
           :examples $ []
           :schema $ :: 'Dynamic
         'comp-offline $ %{} 'CodeEntry (:doc |)
@@ -361,12 +374,12 @@
             defcomp comp-offline () $ div
               {} $ :style
                 merge ui/global ui/fullscreen ui/column-dispersive $ {}
-                  :background-color $ :theme config/site
+                  :background-color $ &map:get config/site :theme
               div $ {}
                 :style $ {} (:height 0)
               div $ {}
                 :style $ {}
-                  :background-image $ str "|url(" (:icon config/site) "|)"
+                  :background-image $ str "|url(" (&map:get config/site :icon) "|)"
                   :width 128
                   :height 128
                   :background-size :contain
@@ -410,37 +423,38 @@
           :code $ quote
             defcomp comp-login (states)
               let
-                  cursor $ :cursor states
-                  state $ or (:data states) initial-state
+                  cursor $ &map:get states :cursor
+                  state $ or (&map:get states :data) initial-state
                 div
-                  {} $ :style (merge ui/flex ui/center)
+                  {} $ :style
+                    merge (schema/style-map ui/flex) (schema/style-map ui/center)
                   div ({})
                     div
                       {} $ :style ({})
                       div ({})
                         input $ {} (:placeholder |Username)
-                          :value $ :username state
+                          :value $ &map:get state :username
                           :style ui/input
                           :on-input $ fn (e d!)
-                            d! cursor $ assoc state :username (:value e)
+                            d! cursor $ assoc state :username (schema/read-field e :value)
                       =< nil 8
                       div ({})
                         input $ {} (:placeholder |Password)
-                          :value $ :password state
+                          :value $ &map:get state :password
                           :style ui/input
                           :on-input $ fn (e d!)
-                            d! cursor $ assoc state :password (:value e)
+                            d! cursor $ assoc state :password (schema/read-field e :value)
                     =< nil 8
                     div
                       {} $ :style
                         {} $ :text-align :right
                       span $ {} (:inner-text "|Sign up")
                         :style $ merge ui/link
-                        :on-click $ on-submit (:username state) (:password state) true
+                        :on-click $ on-submit (&map:get state :username) (&map:get state :password) true
                       =< 8 nil
                       span $ {} (:inner-text "|Log in")
                         :style $ merge ui/link
-                        :on-click $ on-submit (:username state) (:password state) false
+                        :on-click $ on-submit (&map:get state :username) (&map:get state :password) false
           :examples $ []
           :schema $ :: 'Dynamic
         'initial-state $ %{} 'CodeEntry (:doc |)
@@ -453,7 +467,7 @@
             defn on-submit (username password signup?)
               fn (e dispatch!)
                 dispatch! (if signup? :user/sign-up :user/log-in) ([] username password)
-                .!setItem js/localStorage (:storage-key config/site)
+                js/localStorage.setItem (&map:get config/site :storage-key)
                   format-cirru-edn $ [] username password
           :examples $ []
           :schema $ :: 'Dynamic
@@ -481,7 +495,7 @@
                     :on-click $ fn (e d!)
                       d! :router/change $ {} (:name :home)
                     :style $ {} (:cursor :pointer)
-                  <> (:title config/site) nil
+                  <> (&map:get config/site :title) nil
                 div
                   {}
                     :style $ {} (:cursor |pointer)
@@ -511,7 +525,7 @@
                 div
                   {} $ :style
                     {} (:font-family ui/font-fancy) (:font-size 32) (:font-weight 100)
-                  <> $ str "|Hello! " (:name user)
+                  <> $ str "|Hello! " (&map:get user :name)
                 =< nil 16
                 div
                   {} $ :style ui/row
@@ -543,7 +557,7 @@
                       :style $ merge ui/button
                         {} (:color :red) (:border-color :red)
                       :on-click $ fn (e dispatch!) (dispatch! :user/log-out nil)
-                        .removeItem js/localStorage $ :storage-key config/site
+                        js/localStorage.removeItem $ &map:get config/site :storage-key
                     <> "|Log out"
                 =< nil 48
                 a $ {} (:href |https://github.com/TopixIM/patlepat) (:inner-text "|GitHub Address") (:target |_blank)
@@ -566,10 +580,12 @@
               list-> ({})
                 ->
                   interleave
-                    concat (&map:get template :pieces) (repeat | 10)
-                    -> (&map:get template :slots) (&map:to-list)
+                    concat (schema/read-field template :pieces) (repeat | 10)
+                    -> (schema/read-field template :slots) (&map:to-list)
                       map $ fn (pair)
-                        &map:get (last pair) :text
+                        schema/read-field
+                          option:unwrap-or (last pair) {}
+                          , :text
                   map-indexed $ fn (idx item)
                     [] idx $ if (.!test config/slot-matcher item)
                       <> item $ {}
@@ -593,7 +609,7 @@
                   {} $ :style (merge ui/expand ui/column)
                   div
                     {} $ :style ui/row-parted
-                    span nil
+                    span $ {}
                     a $ {} (:inner-text "|添加模板") (:style ui/link)
                       :on-click $ fn (e d!)
                         .show template-editor d! $ fn (text) (d! :template/create text)
@@ -604,29 +620,30 @@
                       map-kv $ fn (k template)
                         [] k $ div
                           {} $ :style
-                            merge ui/row-parted
-                              {} (:padding "|4px 8px")
+                            merge (schema/style-map ui/row-parted)
+                              schema/style-map $ {} (:padding "|4px 8px")
                                 :border-bottom $ str "|1px solid " (hsl 0 0 94)
-                              if
-                                = selected $ :id template
+                              schema/style-map $ if
+                                = selected $ schema/read-field template :id
                                 {} $ :background-color (hsl 0 0 97)
+                                , {}
                           div ({}) (comp-template-preview template)
                             div ({})
-                              <> (:text template)
+                              <> (schema/read-field template :text)
                                 {}
                                   :color $ hsl 0 0 70
                                   :font-size 10
                           if-not
-                            = selected $ :id template
+                            = selected $ schema/read-field template :id
                             div ({})
                               a $ {} (:style ui/link) (:inner-text "|使用该模板")
                                 :on-click $ fn (e d!)
-                                  d! :template/choose $ :id template
+                                  d! :template/choose $ schema/read-field template :id
                               =< 8 nil
                               a $ {} (:style ui/link) (:inner-text "|删除")
                                 :on-click $ fn (e d!)
                                   .show remove-plugin d! $ fn ()
-                                    d! :template/remove $ :id template
+                                    d! :template/remove $ schema/read-field template :id
                       .to-list
                   if (empty? templates) (comp-placeholder "|No tempaltes")
                   .render template-editor
@@ -635,7 +652,7 @@
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
-          ns app.comp.templates $ :require
+          ns app.comp.templates $ :require ([] app.schema :as schema)
             [] respo-ui.core :refer $ [] hsl
             [] respo-ui.core :as ui
             [] respo.comp.space :refer $ [] =<
@@ -655,7 +672,7 @@
                     :margin |4px
                 if mine?
                   span ({})
-                    <> $ :text card
+                    <> $ schema/read-field card :text
                     <> "|(我的)" $ {} (:font-size 12)
                       :color $ hsl 0 0 80
                       :line-height |28px
@@ -668,7 +685,9 @@
                         :font-size 12
                       fn (e d!) (on-remove d!)
                   <>
-                    .!replace (:text card) pattern-any |*
+                    unsafe-coerce
+                      .!replace (schema/read-field card :text) pattern-any |*
+                      , String
                     {} (:font-size 24) (:line-height |28px) (:font-family ui/font-code) (:vertical-align :middle)
           :examples $ []
           :schema $ :: 'Dynamic
@@ -684,7 +703,7 @@
                       :border-left $ str "|1px solid " (hsl 0 0 90)
                       :padding 8
                   div ({})
-                    <> (:text slot)
+                    <> (schema/read-field slot :text)
                       {} $ :color (hsl 280 80 70)
                     =< 8 nil
                     a $ {} (:style ui/link) (:inner-text "|增加卡片")
@@ -692,19 +711,19 @@
                         .show create-plugin d! $ fn (text)
                           when-not (blank? text)
                             d! :template/add-card $ {} (:template-id template-id) (:text text)
-                              :slot-id $ :id slot
+                              :slot-id $ schema/read-field slot :id
                   list-> ({})
-                    -> slot :cards
+                    -> (schema/read-field slot :cards)
                       map-kv $ fn (k card)
                         [] k $ comp-card card
-                          = user-id $ :author-id card
+                          = user-id $ schema/read-field card :author-id
                           fn (d!)
                             d! :template/remove-card $ {} (:template-id template-id)
-                              :slot-id $ :id slot
-                              :card-id $ :id card
+                              :slot-id $ schema/read-field slot :id
+                              :card-id $ schema/read-field card :id
                       .to-list
                   if
-                    empty? $ :cards slot
+                    empty? $ schema/read-field slot :cards
                     comp-placeholder "|没有卡片"
                   .render create-plugin
           :examples $ []
@@ -714,26 +733,28 @@
             defcomp comp-workspace (states router templates game user)
               div
                 {} $ :style
-                  merge ui/expand ui/column $ {} (:flex 1.5)
-                comp-tabs (:name router)
+                  merge (schema/style-map ui/expand) (schema/style-map ui/column)
+                    schema/style-map $ {} (:flex 1.5)
+                comp-tabs (schema/read-field router :name)
                   []
                     {} (:title "|主页") (:name :home)
                     {} (:title "|模板") (:name :templates)
                 if
-                  = :templates $ :name router
-                  comp-templates (>> states :templates) templates $ :template-id game
+                  = :templates $ schema/read-field router :name
+                  comp-templates (>> states :templates) templates $ schema/read-field game :template-id
                   let
-                      maybe-template $ get templates (&map:get game :template-id)
+                      maybe-template $ get templates (schema/read-field game :template-id)
                       template $ option:unwrap-or maybe-template {}
-                      has-next? $ -> (&map:get template :slots) (&map:to-list)
+                      has-next? $ -> (schema/read-field template :slots) (&map:to-list)
                         map $ fn (pair)
-                          &map:get (last pair) :cards
+                          schema/read-field (last pair) :cards
                         every? $ fn (xs)
                           not $ empty? xs
                     if (option:some? maybe-template)
                       div
                         {} $ :style
-                          merge ui/expand ui/column $ {} (:padding 16)
+                          merge (schema/style-map ui/expand) (schema/style-map ui/column)
+                            schema/style-map $ {} (:padding 16)
                         div
                           {} $ :style ui/row-middle
                           comp-template-preview template
@@ -750,12 +771,14 @@
                         =< nil 20
                         list->
                           {} $ :style ui/row
-                          -> (&map:get template :slots) (&map:to-list)
+                          -> (schema/read-field template :slots) (&map:to-list)
                             .sort-by $ fn (pair)
-                              :order $ last pair
+                              schema/read-field
+                                option:unwrap-or (last pair) {}
+                                , :order
                             map $ fn (pair)
                               let[] (k slot) pair $ [] k
-                                comp-slot (>> states k) slot (:id template) (:id user)
+                                comp-slot (>> states k) slot (schema/read-field template :id) (schema/read-field user :id)
                       div
                         {} $ :style
                           {} (:padding 16) (:font-family ui/font-fancy) (:font-weight 300)
@@ -769,7 +792,7 @@
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
-          ns app.comp.workspace $ :require
+          ns app.comp.workspace $ :require ([] app.schema :as schema)
             [] respo-ui.core :refer $ [] hsl
             [] respo-ui.core :as ui
             [] respo.comp.space :refer $ [] =<
@@ -825,6 +848,14 @@
             def message $ {} (:id nil) (:author-id nil) (:text |) (:type :message) (:time nil) (:blotted? false)
           :examples $ []
           :schema $ :: 'Dynamic
+        'read-field $ %{} 'CodeEntry (:doc "|Read a field from an open map or nominal struct boundary.")
+          :code $ quote
+            defn read-field (value field)
+              if (struct? value) (&struct:get value field) (&map:get value field)
+          :examples $ []
+          :schema $ :: 'Fn
+            {} (:return 'Dynamic)
+              :args $ [] 'Dynamic 'Tag
         'router $ %{} 'CodeEntry (:doc |)
           :code $ quote
             def router $ {} (:name nil) (:title nil)
@@ -846,6 +877,14 @@
               :cards $ do card ({})
           :examples $ []
           :schema $ :: 'Dynamic
+        'style-map $ %{} 'CodeEntry (:doc "|Normalize heterogeneous Respo style maps at the UI boundary.")
+          :code $ quote
+            defn style-map (value)
+              unsafe-coerce value $ :: Map Tag Dynamic
+          :examples $ []
+          :schema $ :: 'Fn
+            {} (:return 'Map)
+              :args $ [] 'Dynamic
         'template $ %{} 'CodeEntry (:doc |)
           :code $ quote
             def template $ {} (:id nil) (:text |)
@@ -879,31 +918,35 @@
         '*reader-reel $ %{} 'CodeEntry (:doc |)
           :code $ quote (defatom *reader-reel @*reel)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref 'cumulo-reel.core/ReelState
         '*reel $ %{} 'CodeEntry (:doc |)
           :code $ quote
-            defatom *reel $ merge reel-schema
-              {} (:base @*initial-db) (:db @*initial-db)
+            defatom *reel $ struct-with reel-schema (:base @*initial-db) (:db @*initial-db)
           :examples $ []
-          :schema $ :: 'Dynamic
+          :schema $ :: 'Ref 'cumulo-reel.core/ReelState
         'dispatch! $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn dispatch! (op op-data sid)
               let
                   op-id $ generate-id!
-                  op-time $ str (get-time!)
+                  op-time $ -> (get-time!) (.timestamp)
                 if config/dev? $ println |Dispatch! (str op) op-data sid
                 if (= op :effect/persist) (persist-db!)
-                  reset! *reel $ reel-reducer @*reel updater op op-data sid op-id op-time config/dev?
+                  let
+                      action $ case-default op (:: op op-data)
+                        :session/connect $ :: :session/connect
+                        :session/disconnect $ :: :session/disconnect
+                        :user/log-out $ :: :user/log-out op-data
+                    reset! *reel $ reel-reducer @*reel updater action sid op-id op-time config/dev?
           :examples $ []
           :schema $ :: 'Dynamic
         'get-backup-path! $ %{} 'CodeEntry (:doc |)
           :code $ quote
             defn get-backup-path! () $ let
-                now $ .extract (get-time!)
+                now $ extract-time (get-time!)
               join-path calcit-dirname |backups
-                str $ :month now
-                str (:day now) |-snapshot.cirru
+                str $ &map:get now :month
+                str (&map:get now :day) |-snapshot.cirru
           :examples $ []
           :schema $ :: 'Dynamic
         'main! $ %{} 'CodeEntry (:doc |)
@@ -911,8 +954,9 @@
             defn main! ()
               println "|Running mode:" $ if config/dev? |dev |release
               let
-                  p? $ get-env |port
-                  port $ if (some? p?) (parse-float p?) (:port config/site)
+                  port $ option:unwrap-or
+                    option:map (get-env |port) parse-float
+                    &map:get config/site :port
                 run-server! port
                 println $ str "|Server started on port:" port
               do (; "|init it before doing multi-threading") (identity @*reader-reel)
@@ -930,7 +974,7 @@
           :code $ quote
             defn persist-db! () $ let
                 file-content $ format-cirru-edn
-                  assoc (:db @*reel) :sessions $ {}
+                  assoc (&struct:get @*reel :db) :sessions $ {}
                 storage-path storage-file
                 backup-path $ get-backup-path!
               check-write-file! storage-path file-content
@@ -959,14 +1003,14 @@
             defn run-server! (port)
               wss-serve! (&{} :port port)
                 fn (data)
-                  key-match data
+                  match data
                     (:connect sid)
                       do (dispatch! :session/connect nil sid) (println "|New client.")
                     (:message sid msg)
                       let
                           action $ parse-cirru-edn msg
-                        case-default (:kind action) (println "|unknown action:" action)
-                          :op $ dispatch! (:op action) (:data action) sid
+                        case-default (&map:get action :kind) (println "|unknown action:" action)
+                          :op $ dispatch! (&map:get action :op) (&map:get action :data) sid
                     (:disconnect sid)
                       do (println "|Client closed!") (dispatch! :session/disconnect nil sid)
                     _ $ println "|unknown data:" data
@@ -975,17 +1019,17 @@
         'storage-file $ %{} 'CodeEntry (:doc |)
           :code $ quote
             def storage-file $ if (empty? calcit-dirname)
-              str calcit-dirname $ :storage-file config/site
-              str calcit-dirname |/ $ :storage-file config/site
+              str calcit-dirname $ &map:get config/site :storage-file
+              str calcit-dirname |/ $ &map:get config/site :storage-file
           :examples $ []
           :schema $ :: 'Dynamic
         'sync-clients! $ %{} 'CodeEntry (:doc |)
           :code $ quote
-            defn sync-clients! (reel)
+            defn sync-clients! (reel) (begin-twig-frame!)
               wss-each! $ fn (sid)
                 let
-                    db $ :db reel
-                    records $ :records reel
+                    db $ &struct:get reel :db
+                    records $ &struct:get reel :records
                     session $ get-in db ([] :sessions sid)
                     old-store $ or (get @*client-caches sid) nil
                     new-store $ twig-container db session records
@@ -998,7 +1042,7 @@
                       wss-send! sid $ format-cirru-edn
                         {} (:kind :patch) (:data changes)
                       swap! *client-caches assoc sid new-store
-              new-twig-loop!
+              finish-twig-frame!
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -1010,11 +1054,12 @@
             app.twig.container :refer $ twig-container
             recollect.diff :refer $ diff-twig
             wss.core :refer $ wss-serve! wss-send! wss-each!
-            recollect.twig :refer $ new-twig-loop! clear-twig-caches!
+            recollect.twig :refer $ clear-twig-caches!
+            recollect.memo :refer $ begin-twig-frame! finish-twig-frame!
             app.$meta :refer $ calcit-dirname
             calcit.std.fs :refer $ path-exists? check-write-file!
             calcit.std.time :refer $ set-interval
-            calcit.std.date :refer $ Date get-time!
+            calcit.std.date :refer $ Date get-time! extract-time
             calcit.std.path :refer $ join-path
     'app.twig.container $ %{} 'FileEntry
       :defs $ {}
@@ -1032,7 +1077,7 @@
                     :user $ twig-user
                       get-in db $ [] :users (:user-id session)
                     :router $ assoc router :data
-                      case-default (:name router) ({})
+                      case-default (&map:get router :name) ({})
                         :home $ :pages db
                         :profile $ twig-members (:sessions db) (:users db)
                     :count $ count (:sessions db)
@@ -1040,7 +1085,7 @@
                     :messages $ -> (:messages db)
                       map-kv $ fn (k message)
                         [] k $ assoc message :user
-                          twig-user $ get users (:author-id message)
+                          twig-user $ get users (&map:get message :author-id)
                     :templates $ :templates db
                     :game $ :game db
                   {}
@@ -1122,11 +1167,13 @@
                 assoc
                   -> messages (.to-list)
                     .sort-by $ fn (pair)
-                      negate $ :time (last pair)
+                      negate $ schema/read-field
+                        option:unwrap-or (last pair) {}
+                        , :time
                     take 5
                     pairs-map
                   , op-id $ {} (:id op-id) (:text "|清除了消息") (:time op-time) (:type :operation)
-                    :author-id $ :user-id session
+                    :author-id $ schema/read-field session :user-id
           :examples $ []
           :schema $ :: 'Dynamic
         'create-message $ %{} 'CodeEntry (:doc |)
@@ -1134,7 +1181,7 @@
             defn create-message (db op-data sid op-id op-time session user)
               assoc-in db ([] :messages op-id)
                 {} (:id op-id) (:text op-data)
-                  :author-id $ :user-id session
+                  :author-id $ schema/read-field session :user-id
                   :time op-time
                   :type :message
           :examples $ []
@@ -1143,17 +1190,29 @@
           :code $ quote
             defn show-result (db op-data sid op-id op-time session user)
               let
-                  template-id $ get-in db ([] :game :template-id)
-                  template $ get-in db ([] :templates template-id)
-                  insertions $ -> template :slots (.to-list)
+                  template-id $ option:unwrap-or
+                    get-in db $ [] :game :template-id
+                    , nil
+                  template $ option:unwrap-or
+                    get-in db $ [] :templates template-id
+                    , {}
+                  insertions $ -> (schema/read-field template :slots) (&map:to-list)
                     .sort-by $ fn (pair)
-                      :order $ last pair
+                      schema/read-field
+                        option:unwrap-or (last pair) {}
+                        , :order
                     map $ fn (pair)
-                      :text $ last
-                        first $ :cards (last pair)
-                  content $ .join-str
+                      let
+                          slot $ option:unwrap-or (last pair) {}
+                          cards $ schema/read-field slot :cards
+                          card-pair $ option:unwrap-or
+                            first $ &map:to-list cards
+                            , []
+                          card $ option:unwrap-or (last card-pair) {}
+                        schema/read-field card :text
+                  content $ join-str
                     interleave
-                      concat (:pieces template) (repeat | 10)
+                      concat (schema/read-field template :pieces) (repeat | 10)
                       , insertions
                     , |
                 -> db
@@ -1170,7 +1229,7 @@
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote
-          ns app.updater.message $ :require
+          ns app.updater.message $ :require ([] app.schema :as schema)
     'app.updater.router $ %{} 'FileEntry
       :defs $ {}
         'change $ %{} 'CodeEntry (:doc |)
@@ -1289,7 +1348,7 @@
                     , op-data
                   maybe-user $ -> (:users db) (vals) (.to-list)
                     find $ fn (user)
-                      and $ = username (:name user)
+                      and $ = username (&map:get user :name)
                 update-in db ([] :sessions sid)
                   fn (session)
                     if (some? maybe-user)
