@@ -3,17 +3,11 @@
   :about "|Machine-generated snapshot. Do not edit directly — changes will be overwritten. Use `calcit query` to inspect and `calcit edit`/`calcit tree` to modify. Run `calcit docs agents --contract` before mutations; use `--full` for first orientation or changed contract digest. Manual edits must follow format and schema conventions, then run `calcit edit format`."
   :package |app
   :entries $ {}
-    :default $ {} (:description |)
-      :init-fn 'app.client/main!
-      :mode :native
-      :reload-fn 'app.client/reload!
+    :default $ {} (:description |) (:init-fn 'app.client/main!) (:mode :native) (:reload-fn 'app.client/reload!)
       :feature-policy $ {}
       :modules $ [] |respo.calcit/ |lilac/ |recollect/ |memof/ |respo-ui.calcit/ |ws-edn.calcit/ |cumulo-util.calcit/ |respo-message.calcit/ |cumulo-reel.calcit/ |alerts.calcit/ |respo-feather.calcit/
       :type-slots $ {}
-    :server $ {} (:description |)
-      :init-fn 'app.server/main!
-      :mode :native
-      :reload-fn 'app.server/reload!
+    :server $ {} (:description |) (:init-fn 'app.server/main!) (:mode :native) (:reload-fn 'app.server/reload!)
       :feature-policy $ {}
       :modules $ [] |lilac/ |recollect/ |memof/ |ws-edn.calcit/ |cumulo-util.calcit/ |cumulo-reel.calcit/ |calcit-wss/ |calcit.std/ |calcit-regex/
       :type-slots $ {}
@@ -45,8 +39,7 @@
               ws-connect! (str |ws:// host |: port)
                 {}
                   :on-open $ fn (event) (simulate-login!)
-                  :on-close $ fn (event) (reset! *store nil)
-                    js/console.error "|Lost connection!"
+                  :on-close $ fn (event) (reset! *store nil) (js/console.error "|Lost connection!")
                   :on-data on-server-data
           :examples $ []
           :schema $ :: 'Dynamic
@@ -78,8 +71,7 @@
           :schema $ :: 'Dynamic
         'on-server-data $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-server-data (data)
-            case-default (&map:get data :kind)
-              println "|unknown server data kind:" data
+            case-default (&map:get data :kind) (println "|unknown server data kind:" data)
               :patch $ let
                   changes $ &map:get data :data
                 when config/dev? $ js/console.log |Changes $ to-js-data changes
@@ -175,9 +167,7 @@
       :defs $ {}
         'DayjsHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait DayjsHost
-            .format $ :: 'Fn $ {}
-              :args $ [] 'String
-              :return 'String
+            .format $ :: 'Fn $ {} ([] 'String 'String) (:return 'String)
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ :: 'Trait
@@ -185,8 +175,7 @@
           :code $ quote $ defcomp comp-chatroom (states messages styles)
             let
                 cursor $ schema/read-field states :cursor
-                state $ or
-                  schema/read-field states :data
+                state $ or (schema/read-field states :data)
                   {} $ :draft |
                 send-message $ fn (d!)
                   d! cursor $ assoc state :draft |
@@ -218,10 +207,8 @@
                     if (empty? pairs) acc $ let
                         pair $ option:unwrap-or (first pairs) []
                         message $ option:unwrap-or (last pair) ({})
-                      recur (rest pairs)
-                        schema/read-field message :author-id
-                        conj acc $ []
-                          schema/read-field message :time
+                      recur (rest pairs) (schema/read-field message :author-id)
+                        conj acc $ [] (schema/read-field message :time)
                           comp-message message $ = last-user-id $ schema/read-field message :author-id
                 div
                   {} $ :style $ merge (schema/style-map ui/row)
@@ -244,8 +231,7 @@
           :schema $ :: 'Dynamic
         'comp-message $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-message (message merged?)
-            case
-              schema/read-field message :type
+            case (schema/read-field message :type)
               :message $ div
                 {} $ :style $ merge ui/row
                   {} $ :margin "|4px 0"
@@ -265,10 +251,8 @@
                 =< 8 nil
                 div
                   {} $ :style ui/expand
-                  if
-                    schema/read-field message :blotted?
-                    <>
-                      schema/read-field message :id
+                  if (schema/read-field message :blotted?)
+                    <> (schema/read-field message :id)
                       {}
                         :color $ hsl 0 0 80
                         :text-decoration :line-through
@@ -284,8 +268,7 @@
                       :color $ hsl 0 0 80
                       :font-size 12
                       :font-family ui/font-fancy
-                  if-not
-                    schema/read-field message :blotted?
+                  if-not (schema/read-field message :blotted?)
                     span
                       {} (:class-name |invisible-link)
                         :on-click $ fn (e d!)
@@ -370,8 +353,7 @@
                         {}
                       :: Map String Dynamic
                     {}
-                    fn (info d!)
-                      d! :session/remove-message info
+                    fn (info d!) (d! :session/remove-message info)
                   when dev? $ comp-reel (&map:get store :reel-length) ({})
           :examples $ []
           :schema $ :: 'Dynamic
@@ -400,11 +382,7 @@
             div $ {} $ :style
               let
                   size 24
-                {} (:width size) (:height size) (:position :absolute) (:bottom 60) (:left 8)
-                  :background-color color
-                  :border-radius |50%
-                  :opacity 0.6
-                  :pointer-events :none
+                {} (:width size) (:height size) (:position :absolute) (:bottom 60) (:left 8) (:background-color color) (:border-radius |50%) (:opacity 0.6) (:pointer-events :none)
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -491,7 +469,7 @@
             div
               {} $ :style $ merge ui/row-center
                 {} (:height 48) (:justify-content :space-between) (:padding "|0 16px") (:font-size 16)
-                  :border-bottom $ str "|1px solid " $ hsl 0 0 0 0.1
+                  :border-bottom $ str "|1px solid " $ hsl 0 0 0
                   :font-family ui/font-fancy
               div
                 {}
@@ -535,8 +513,8 @@
                 list->
                   {} $ :style ui/row
                   -> members
-                    map-kv $ fn (k username)
-                      [] k $ div
+                    filter-map-kv $ fn (k username)
+                      %:: MapEntryDecision :keep k $ [] k $ div
                         {} $ :style $ {} (:padding "|0 8px")
                           :border $ str "|1px solid " $ hsl 0 0 80
                           :border-radius |16px
@@ -559,10 +537,7 @@
                       js/localStorage.removeItem $ &map:get config/site :storage-key
                   <> "|Log out"
               =< nil 48
-              a $ {}
-                :href |https://github.com/TopixIM/patlepat
-                :inner-text "|GitHub Address"
-                :target |_blank
+              a $ {} (:href |https://github.com/TopixIM/patlepat) (:inner-text "|GitHub Address") (:target |_blank)
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
@@ -581,19 +556,14 @@
             list-> ({})
               ->
                 interleave
-                  concat
-                    schema/read-field template :pieces
-                    repeat | 10
-                  ->
-                    schema/read-field template :slots
-                    &map:to-list
+                  concat (schema/read-field template :pieces) (repeat | 10)
+                  -> (schema/read-field template :slots) (&map:to-list)
                     map $ fn (pair)
                       schema/read-field
                         option:unwrap-or (last pair) ({})
                         , :text
                 map-indexed $ fn (idx item)
-                  [] idx $ if
-                    .!test config/slot-matcher item
+                  [] idx $ if (.!test config/slot-matcher item)
                     <> item $ {}
                       :color $ hsl 200 80 70
                       :font-size 24
@@ -620,8 +590,8 @@
                 list->
                   {} $ :style $ {} (:padding "|0px 4px")
                   -> templates
-                    map-kv $ fn (k template)
-                      [] k $ div
+                    filter-map-kv $ fn (k template)
+                      %:: MapEntryDecision :keep k $ div
                         {} $ :style $ merge (schema/style-map ui/row-parted)
                           schema/style-map $ {} (:padding "|4px 8px")
                             :border-bottom $ str "|1px solid " $ hsl 0 0 94
@@ -629,11 +599,9 @@
                             = selected $ schema/read-field template :id
                             {} $ :background-color $ hsl 0 0 97
                             {}
-                        div ({})
-                          comp-template-preview template
+                        div ({}) (comp-template-preview template)
                           div ({})
-                            <>
-                              schema/read-field template :text
+                            <> (schema/read-field template :text)
                               {}
                                 :color $ hsl 0 0 70
                                 :font-size 10
@@ -646,8 +614,7 @@
                             =< 8 nil
                             a $ {} (:style ui/link) (:inner-text "|删除")
                               :on-click $ fn (e d!)
-                                .show remove-plugin d! $ fn () $ d! :template/remove
-                                  schema/read-field template :id
+                                .show remove-plugin d! $ fn () $ d! :template/remove (schema/read-field template :id)
                     .to-list
                 if (empty? templates) (comp-placeholder "|No tempaltes")
                 .render template-editor
@@ -688,9 +655,7 @@
                     fn (e d!) (on-remove d!)
                 <>
                   unsafe-coerce
-                    .!replace
-                      schema/read-field card :text
-                      , pattern-any |*
+                    .!replace (schema/read-field card :text) pattern-any |*
                     , String
                   {} (:font-size 24) (:line-height |28px) (:font-family ui/font-code) (:vertical-align :middle)
           :examples $ []
@@ -706,8 +671,7 @@
                     :border-left $ str "|1px solid " $ hsl 0 0 90
                     :padding 8
                 div ({})
-                  <>
-                    schema/read-field slot :text
+                  <> (schema/read-field slot :text)
                     {} $ :color $ hsl 280 80 70
                   =< 8 nil
                   a $ {} (:style ui/link) (:inner-text "|增加卡片")
@@ -717,10 +681,9 @@
                           d! :template/add-card $ {} (:template-id template-id) (:text text)
                             :slot-id $ schema/read-field slot :id
                 list-> ({})
-                  ->
-                    schema/read-field slot :cards
-                    map-kv $ fn (k card)
-                      [] k $ comp-card card
+                  -> (schema/read-field slot :cards)
+                    filter-map-kv $ fn (k card)
+                      %:: MapEntryDecision :keep k $ [] k $ comp-card card
                         = user-id $ schema/read-field card :author-id
                         fn (d!)
                           d! :template/remove-card $ {} (:template-id template-id)
@@ -738,8 +701,7 @@
             div
               {} $ :style $ merge (schema/style-map ui/expand) (schema/style-map ui/column)
                 schema/style-map $ {} $ :flex 1.5
-              comp-tabs
-                schema/read-field router :name
+              comp-tabs (schema/read-field router :name)
                 []
                   {} (:title "|主页") (:name :home)
                   {} (:title "|模板") (:name :templates)
@@ -749,9 +711,7 @@
                 let
                     maybe-template $ get templates $ schema/read-field game :template-id
                     template $ option:unwrap-or maybe-template $ {}
-                    has-next? $ ->
-                      schema/read-field template :slots
-                      &map:to-list
+                    has-next? $ -> (schema/read-field template :slots) (&map:to-list)
                       map $ fn (pair)
                         schema/read-field (last pair) :cards
                       every? $ fn (xs)
@@ -769,23 +729,18 @@
                             :style $ merge ui/button $ {} (:color :white)
                               :background-color $ hsl 200 90 60
                             :inner-text "|拼接句子"
-                            :on-click $ fn (e d!)
-                              d! :message/show-result nil
+                            :on-click $ fn (e d!) (d! :message/show-result nil)
                           <> "|卡片种类不足" $ {} $ :color (hsl 10 80 76)
                       =< nil 20
                       list->
                         {} $ :style ui/row
-                        ->
-                          schema/read-field template :slots
-                          &map:to-list
+                        -> (schema/read-field template :slots) (&map:to-list)
                           .sort-by $ fn (pair)
                             schema/read-field
                               option:unwrap-or (last pair) ({})
                               , :order
                           map $ fn (pair)
-                            let[] (k slot) pair $ [] k $ comp-slot (>> states k) slot
-                              schema/read-field template :id
-                              schema/read-field user :id
+                            let[] (k slot) pair $ [] k $ comp-slot (>> states k) slot (schema/read-field template :id) (schema/read-field user :id)
                     div
                       {} $ :style $ {} (:padding 16) (:font-family ui/font-fancy) (:font-weight 300)
                       <> "|没有选择模板, 或者模板已不存在"
@@ -816,11 +771,7 @@
           :schema $ :: 'Dynamic
         'site $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def site
-            {} (:port 11023) (:title |Patlepat)
-              :icon |http://cdn.tiye.me/logo/topix.png
-              :theme |#eeeeff
-              :storage-key |patlepat
-              :storage-file |storage.cirru
+            {} (:port 11023) (:title |Patlepat) (:icon |http://cdn.tiye.me/logo/topix.png) (:theme |#eeeeff) (:storage-key |patlepat) (:storage-file |storage.cirru)
           :examples $ []
           :schema $ :: 'Dynamic
         'slot-matcher $ %{} 'CodeEntry (:doc |)
@@ -913,8 +864,7 @@
           :code $ quote $ defatom *initial-db
             if
               path-exists? $ w-log storage-file
-              do
-                println "|Found local EDN data"
+              do (println "|Found local EDN data")
                 merge schema/database $ parse-cirru-edn $ read-file storage-file
               do (println "|Found no data") schema/database
           :examples $ []
@@ -961,9 +911,7 @@
                   &map:get config/site :port
               run-server! port
               println $ str "|Server started on port:" port
-            do
-              ; "|init it before doing multi-threading"
-              identity @*reader-reel
+            do (; "|init it before doing multi-threading") (identity @*reader-reel)
             set-interval 200 $ fn () $ render-loop!
             set-interval 600000 $ fn () $ persist-db!
             on-control-c on-exit!
@@ -985,8 +933,7 @@
           :schema $ :: 'Dynamic
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! () (println "|Code updated..")
-            if (not config/dev?)
-              raise "|reloading only happens in dev mode"
+            if (not config/dev?) (raise "|reloading only happens in dev mode")
             clear-twig-caches!
             reset! *reel $ refresh-reel @*reel @*initial-db updater
             sync-clients! @*reader-reel
@@ -1013,8 +960,7 @@
                       case-default (&map:get action :kind) (println "|unknown action:" action)
                         :op $ dispatch! (&map:get action :op) (&map:get action :data) sid
                   (:disconnect sid)
-                    do (println "|Client closed!")
-                      dispatch! :session/disconnect nil sid
+                    do (println "|Client closed!") (dispatch! :session/disconnect nil sid)
                   _ $ println "|unknown data:" data
           :examples $ []
           :schema $ :: 'Dynamic
@@ -1026,8 +972,7 @@
           :examples $ []
           :schema $ :: 'Dynamic
         'sync-clients! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn sync-clients! (reel)
-            begin-twig-frame!
+          :code $ quote $ defn sync-clients! (reel) (begin-twig-frame!)
             wss-each! $ fn (sid)
               let
                   db $ :db reel
@@ -1134,40 +1079,27 @@
                   , nil
               match op
                 (:session/connect) (session/connect db nil sid op-id op-time session-data user-data)
-                (:session/disconnect)
-                  session/disconnect db nil sid op-id op-time session-data user-data
-                (:session/remove-message op-data)
-                  session/remove-message db op-data sid op-id op-time session-data user-data
+                (:session/disconnect) (session/disconnect db nil sid op-id op-time session-data user-data)
+                (:session/remove-message op-data) (session/remove-message db op-data sid op-id op-time session-data user-data)
                 (:user/log-in op-data) (user/log-in db op-data sid op-id op-time session-data user-data)
                 (:user/sign-up op-data) (user/sign-up db op-data sid op-id op-time session-data user-data)
                 (:user/log-out op-data) (user/log-out db op-data sid op-id op-time session-data user-data)
                 (:router/change op-data) (router/change db op-data sid op-id op-time session-data user-data)
-                (:message/create op-data)
-                  message/create-message db op-data sid op-id op-time session-data user-data
+                (:message/create op-data) (message/create-message db op-data sid op-id op-time session-data user-data)
                 (:message/clear op-data) (message/clear db op-data sid op-id op-time session-data user-data)
-                (:message/blot-out op-data)
-                  message/blot-out db op-data sid op-id op-time session-data user-data
-                (:message/show-result op-data)
-                  message/show-result db op-data sid op-id op-time session-data user-data
-                (:template/create op-data)
-                  template/create-template db op-data sid op-id op-time session-data user-data
-                (:template/remove op-data)
-                  template/remove-template db op-data sid op-id op-time session-data user-data
+                (:message/blot-out op-data) (message/blot-out db op-data sid op-id op-time session-data user-data)
+                (:message/show-result op-data) (message/show-result db op-data sid op-id op-time session-data user-data)
+                (:template/create op-data) (template/create-template db op-data sid op-id op-time session-data user-data)
+                (:template/remove op-data) (template/remove-template db op-data sid op-id op-time session-data user-data)
                 (:template/choose op-data) (template/choose db op-data sid op-id op-time session-data user-data)
-                (:template/add-card op-data)
-                  template/add-card db op-data sid op-id op-time session-data user-data
-                (:template/remove-card op-data)
-                  template/remove-card db op-data sid op-id op-time session-data user-data
+                (:template/add-card op-data) (template/add-card db op-data sid op-id op-time session-data user-data)
+                (:template/remove-card op-data) (template/remove-card db op-data sid op-id op-time session-data user-data)
                 _ $ do (eprintln "|Unknown op:" op) db
           :examples $ []
           :schema $ :: 'Dynamic
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater
-          :require
-            [] app.updater.session :as session
-            [] app.updater.user :as user
-            [] app.updater.router :as router
-            [] app.schema :as schema
+          :require ([] app.updater.session :as session) ([] app.updater.user :as user) ([] app.updater.router :as router) ([] app.schema :as schema)
             [] respo-message.updater :refer $ [] update-messages
             [] app.updater.message :as message
             [] app.updater.template :as template
@@ -1211,9 +1143,7 @@
                 template $ option:unwrap-or
                   get-in db $ [] :templates template-id
                   {}
-                insertions $ ->
-                  schema/read-field template :slots
-                  &map:to-list
+                insertions $ -> (schema/read-field template :slots) (&map:to-list)
                   .sort-by $ fn (pair)
                     schema/read-field
                       option:unwrap-or (last pair) ({})
@@ -1229,9 +1159,7 @@
                       schema/read-field card :text
                 content $ join-str
                   interleave
-                    concat
-                      schema/read-field template :pieces
-                      repeat | 10
+                    concat (schema/read-field template :pieces) (repeat | 10)
                     , insertions
                   , |
               -> db
