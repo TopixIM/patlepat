@@ -3,9 +3,9 @@
     "@calcit/procs": "0.14.17"
   },
   "scripts": {
-    "compile-page": "calcit calcit.cirru js",
+    "compile-page": "calcit calcit.cirru --compat-types js",
     "release-page": "vite build --base=./",
-    "watch-page": "calcit calcit.cirru js --watch"
+    "watch-page": "calcit calcit.cirru --compat-types js --watch"
   },
   "devDependencies": {
     "bottom-tip": "^0.1.3",
