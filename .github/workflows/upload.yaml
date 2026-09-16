@@ -28,6 +28,10 @@ jobs:
         yarn --version
 
     - uses: calcit-lang/setup-calcit@704b3f5cd6f9ce3bd1e0c926dbdd1d181adb8180 # v1
+      with:
+        version: "0.14.17"
+        tools: calcit,caps
+        caps-version: "0.1.1"
 
     - name: Install dependencies
       run: |
@@ -39,9 +43,7 @@ jobs:
       run: |
         calcit calcit.cirru edit format
         git diff --exit-code -- calcit.cirru
-        calcit calcit.cirru --check-only
-        calcit calcit.cirru --entry server --check-only
-        calcit calcit.cirru analyze dynamic-methods --summary-only --format json
+        calcit calcit.cirru --compat-types js
         calcit calcit.cirru analyze deprecated --summary-only --format json
 
     - name: Build browser client
