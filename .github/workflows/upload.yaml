@@ -62,13 +62,11 @@ jobs:
           echo "VITE_BASE_URL=${base_url}" >> "$GITHUB_ENV"
           echo "prefix=${asset_prefix}" >> "$GITHUB_OUTPUT"
           echo "base-url=${base_url}" >> "$GITHUB_OUTPUT"
-      - name: Build web and server artifacts
+      - name: Build web and stage existing server scripts
         run: |
           set -euo pipefail
           yarn build
-          calcit calcit.cirru --entry server ir
           mkdir -p dist-server
-          cp js-out/program-ir.cirru dist-server/compact.cirru
           cp calcit.cirru deps.cirru package.json dist-server/
       - name: Check COS credentials
         id: cos-credentials
