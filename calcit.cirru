@@ -3,11 +3,11 @@
   :about "|Machine-generated snapshot. Do not edit directly — changes will be overwritten. Use `calcit query` to inspect and `calcit edit`/`calcit tree` to modify. Run `calcit docs agents --contract` before mutations; use `--full` for first orientation or changed contract digest. Manual edits must follow format and schema conventions, then run `calcit edit format`."
   :package |app
   :entries $ {}
-    :default $ {} (:description |) (:init-fn 'app.client/main!) (:mode :native) (:reload-fn 'app.client/reload!) (:target :browser)
+    :default $ {} (:description |) (:init-fn 'app.client/main!) (:mode :js) (:reload-fn 'app.client/reload!) (:target :browser)
       :feature-policy $ {}
       :modules $ [] |respo.calcit/ |lilac/ |recollect/ |memof/ |respo-ui.calcit/ |ws-edn.calcit/ |cumulo-util.calcit/ |respo-message.calcit/ |cumulo-reel.calcit/ |alerts.calcit/ |respo-feather.calcit/
       :type-slots $ {}
-    :server $ {} (:description |) (:init-fn 'app.server/main!) (:mode :native) (:reload-fn 'app.server/reload!) (:target :node)
+    :server $ {} (:description |) (:init-fn 'app.server/main!) (:mode :native) (:reload-fn 'app.server/reload!) (:target :native)
       :feature-policy $ {}
       :modules $ [] |lilac/ |recollect/ |memof/ |ws-edn.calcit/ |cumulo-util.calcit/ |cumulo-reel.calcit/ |calcit-wss/ |calcit.std/ |calcit-regex/
       :type-slots $ {}
@@ -39,7 +39,7 @@
         'connect! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn connect! ()
             let
-                location $ unsafe-coerce js/location 'js-ffi.browser/LocationHost
+                location $ location-host
                 url-obj $ unsafe-coerce
                   url-parse (.-href location) true
                   , 'app.client/ParsedUrlHost
@@ -54,21 +54,31 @@
                   :on-close $ fn (event) (reset! *store nil) (js/console.error "|Lost connection!")
                   :on-data on-server-data
           :examples $ []
-          :schema $ :: 'Fn $ {} (:return 'Dynamic)
+          :schema $ :: 'Fn $ {} (:return 'ws-edn.client/WsClient)
             :args $ []
             :features $ #{} :js-ffi
         'dispatch! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn dispatch! (op op-data)
-            when
-              and config/dev? $ not= op :states
-              println |Dispatch op op-data
-            case-default op
-              ws-send! $ {} (:kind :op) (:op op) (:data op-data)
-              :states $ let[] (cursor s) op-data $ reset! *states (update-states @*states cursor s)
-              :effect/connect $ connect!
+          :code $ quote $ defn dispatch! (op)
+            let
+                action $ assert-type op 'Enum
+                op-tag $ &enum:nth action 0
+              when
+                and config/dev? $ not= op-tag :states
+                println |Dispatch action
+              match action
+                (:states cursor state)
+                  reset! *states $ update-states @*states cursor state
+                (:effect/connect) (connect!)
+                _ $ let
+                    message $ {} (:kind :op) (:op op-tag)
+                  match (nth action 1)
+                    (:none) (ws-send! message)
+                    (:some data)
+                      ws-send! $ assoc message :data data
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
-            :args $ [] 'Tag 'Dynamic
+            :args $ [] 'Dynamic
+            :features $ #{} :js-ffi
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             println "|Running mode:" $ if config/dev? |dev |release
@@ -76,7 +86,11 @@
             connect!
             add-watch *store :changes $ fn (store prev) (render-app!)
             add-watch *states :changes $ fn (states prev) (render-app!)
-            on-page-touch $ fn () $ if (nil? @*store) (connect!)
+            on-page-touch $ fn ()
+              hint-fn $ {}
+                :args $ []
+                :return 'Unit
+              if (nil? @*store) (connect!)
             println "|App started!"
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
@@ -111,9 +125,7 @@
           :code $ quote $ defn render-app! ()
             render! mount-target
               comp-container (&map:get @*states :states) @*store
-              unsafe-coerce dispatch! $ :: 'Fn $ {}
-                :args $ [] 'Dynamic
-                :return 'Unit
+              , dispatch!
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
@@ -124,8 +136,8 @@
                 raw $ js/localStorage.getItem $ &map:get config/site :storage-key
               if (js-present? raw)
                 do (println "|Found storage.")
-                  dispatch! :user/log-in $ parse-cirru-edn $ unsafe-coerce raw String
-                do $ println "|Found no storage."
+                  dispatch! $ :: :user/log-in $ parse-cirru-edn (unsafe-coerce raw 'String)
+                println "|Found no storage."
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
@@ -145,7 +157,7 @@
             [] |url-parse :default url-parse
             |bottom-tip :default hud!
             |./calcit.build-errors :default client-errors
-            js-ffi.browser :refer $ [] query-selector
+            js-ffi.browser :refer $ [] query-selector location-host
     'app.comp $ %{} 'FileEntry
       :defs $ {}
         'comp-placeholder $ %{} 'CodeEntry (:doc |)
@@ -196,7 +208,9 @@
       :defs $ {}
         'DayjsHost $ %{} 'CodeEntry (:doc |)
           :code $ quote $ deftrait DayjsHost
-            .format $ :: 'Fn $ {} ([] 'String 'String) (:return 'String)
+            .format $ :: 'Fn $ {}
+              :args $ [] 'app.comp.chatroom/DayjsHost 'String
+              :return 'String
           :examples $ []
           :ffi $ {} (:backend :js) (:kind :external-object) (:target :browser)
           :schema $ :: 'Trait
@@ -295,7 +309,7 @@
                     ->
                       unsafe-coerce
                         dayjs $ schema/read-field message :time
-                        , DayjsHost
+                        , 'app.comp.chatroom/DayjsHost
                       .format |HH:mm:ss
                     {}
                       :color $ hsl 0 0 80
@@ -360,17 +374,14 @@
       :defs $ {}
         'comp-container $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-container (states store)
-            let
-                state $ &map:get states :data
-                session $ &map:get store :session
-                router $ &map:get store :router
-                router-data $ &map:get router :data
-                render-body $ fn () $ div
-                  {} $ :style $ merge ui/expand ui/row
-                  comp-workspace (>> states :workspace) router (&map:get store :templates) (&map:get store :game) (&map:get store :user)
-                  comp-chatroom (>> states :chat) (&map:get store :messages)
-                    {} $ :border-left $ str "|1px solid " (hsl 0 0 90)
-              if (nil? store) (comp-offline)
+            if (nil? store) (comp-offline)
+              let
+                  router $ &map:get store :router
+                  render-body $ fn () $ div
+                    {} $ :style $ merge ui/expand ui/row
+                    comp-workspace (>> states :workspace) router (&map:get store :templates) (&map:get store :game) (&map:get store :user)
+                    comp-chatroom (>> states :chat) (&map:get store :messages)
+                      {} $ :border-left $ str "|1px solid " (hsl 0 0 90)
                 div
                   {} $ :style $ merge ui/global ui/fullscreen ui/column
                   comp-navigation (&map:get store :logged-in?) (&map:get store :count)
@@ -981,7 +992,8 @@
                   _ default-port
               run-server! port
               println $ str "|Server started on port:" port
-            do (; "|init it before doing multi-threading") (identity @*reader-reel)
+            ; "|init it before doing multi-threading"
+            identity @*reader-reel
             set-interval 200 $ fn () $ render-loop!
             set-interval 600000 $ fn () $ persist-db!
             on-control-c on-exit!
@@ -1015,12 +1027,11 @@
             :args $ []
         'render-loop! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn render-loop! ()
-            do
-              when
-                not $ identical? @*reader-reel @*reel
-                reset! *reader-reel @*reel
-                sync-clients! @*reader-reel
-              , &unit
+            when
+              not $ identical? @*reader-reel @*reel
+              reset! *reader-reel @*reel
+              sync-clients! @*reader-reel
+            , &unit
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'Unit)
             :args $ []
