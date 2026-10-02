@@ -6,6 +6,10 @@ js-out/
 node_modules/
 .yarn/*.gz
 dist/
+.calcit/
+dist-server/
+/compact.cirru
+/package.cirru
 
 yarn-error.log
 
