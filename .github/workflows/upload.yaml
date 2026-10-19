@@ -30,25 +30,48 @@ jobs:
           corepack prepare yarn@4.18.0 --activate
       - uses: calcit-lang/setup-calcit@v1.5.0
         with:
-          version: "0.27.0"
+          deps-file: deps.cirru
           tools: calcit,caps
           caps-version: "0.1.1"
       - name: Resolve immutable dependencies
         run: |
           set -euo pipefail
-          caps --ci
+          caps --strict --ci
           yarn install --immutable
           caps verify --toolchain
       - name: Validate Calcit entries
         run: |
           set -euo pipefail
-          calcit fix --workflow strict --verify --format edn
+          test "$(calcit --version)" = "0.30.1-alpha.5"
           calcit calcit.cirru edit format
           git diff --exit-code -- calcit.cirru
           calcit calcit.cirru --check-only
           calcit calcit.cirru --entry server --check-only
-          calcit analyze check-public --ns app.client --ns app.comp --ns app.comp.chatroom --ns app.comp.container --ns app.comp.login --ns app.comp.navigation --ns app.comp.profile --ns app.comp.templates --ns app.comp.workspace --ns app.config --ns app.schema
-          calcit --entry server analyze check-public --ns 'app.$meta' --ns app.config --ns app.schema --ns app.server --ns app.twig.container --ns app.twig.user --ns app.updater --ns app.updater.message --ns app.updater.router --ns app.updater.session --ns app.updater.template --ns app.updater.user
+          calcit --check-only --ns app.client --ns app.comp --ns app.comp.chatroom --ns app.comp.container --ns app.comp.login --ns app.comp.navigation --ns app.comp.profile --ns app.comp.templates --ns app.comp.workspace --ns app.config --ns app.schema --summary-only --format json
+          calcit --entry server --check-only --ns 'app.$meta' --ns app.config --ns app.schema --ns app.server --ns app.twig.container --ns app.twig.user --ns app.updater --ns app.updater.message --ns app.updater.router --ns app.updater.session --ns app.updater.template --ns app.updater.user --summary-only --format json
+          calcit --entry server test --require-match --summary-only --format json
+      - name: Load released shared test runner
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: calcit-lang/calcit
+          ref: 0.30.1-alpha.5
+          path: .calcit/core-test-tools
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/run-core-tests.mjs
+            /scripts/core-test-protocol.mjs
+            /scripts/core-tests-exclusions.cirru
+            /docs/installation/wasm-support.md
+      - name: Replay portable wire, archive and composition contracts
+        run: |
+          export CALCIT_BIN="$(command -v calcit)"
+          node .calcit/core-test-tools/scripts/run-core-tests.mjs \
+            --snapshot calcit.cirru --entry default --target app.schema \
+            --target app.comp/event-value \
+            --target app.updater.message/compose-result --backend native,js \
+            --exclusions .calcit/core-test-tools/scripts/core-tests-exclusions.cirru \
+            --support-matrix .calcit/core-test-tools/docs/installation/wasm-support.md
       - name: Select CDN asset path
         id: asset-path
         env:
