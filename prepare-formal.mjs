@@ -26,7 +26,8 @@ const sites=[
  ['app.comp.chatroom/comp-chatroom',[3,2,5,2,1,5,1],keydown,['e','d!']],
  ['app.comp.chatroom/comp-chatroom',[3,2,5,4,1,3,1],event,['e','d!']],
  ['app.comp.workspace/comp-card',[3,2,2,5,3],event,['e','d!']],
- ['app.comp.workspace/comp-slot',[3,2,2,4,1,3,1],event,['e','d!']],
+ // Published Prompt.show intentionally has no concrete return contract.
+ ['app.comp.workspace/comp-slot',[3,2,2,4,1,3,1],keydown,['e','d!']],
  ['app.comp.workspace/comp-slot',[3,2,2,4,1,3,1,2,3],text,['text']]
 ];
 // Deepest paths first: inserting a hint must not shift a nested reviewed target.
