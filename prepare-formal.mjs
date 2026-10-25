@@ -17,10 +17,14 @@ for(const n of query('ns').namespaces){
 const before=norm(p.before),after=structuredClone(before);
 const dispatch=['::',"'Fn",['{}',[':args',['[]',"'Enum"]],[':return',"'Unit"]]];
 const event=['hint-fn',['{}',[':args',['[]',['::',"'Map","'Tag","'Dynamic"],dispatch]],[':return',"'Unit"]]];
-const text=['hint-fn',['{}',[':args',['[]',"'String"]],[':return',"'Unit"]]];
+// Prompt ignores the task result: blank input retains the existing nil result.
+const text=['hint-fn',['{}',[':args',['[]',"'String"]]]];
+const keydown=['hint-fn',['{}',[':args',['[]',['::',"'Map","'Tag","'Dynamic"],dispatch]]]];
 const sites=[
  ['app.comp.templates/comp-templates',[3,2,3,2,2,1,2,2,3,3,2,4,1,3,1],event,['e','d!']],
  ['app.comp.chatroom/comp-chatroom',[3,2,5,2,1,4,1],event,['e','d!']],
+ ['app.comp.chatroom/comp-chatroom',[3,2,5,2,1,5,1],keydown,['e','d!']],
+ ['app.comp.chatroom/comp-chatroom',[3,2,5,4,1,3,1],event,['e','d!']],
  ['app.comp.workspace/comp-card',[3,2,2,5,3],event,['e','d!']],
  ['app.comp.workspace/comp-slot',[3,2,2,4,1,3,1],event,['e','d!']],
  ['app.comp.workspace/comp-slot',[3,2,2,4,1,3,1,2,3],text,['text']]
