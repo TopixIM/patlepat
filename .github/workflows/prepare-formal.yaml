@@ -30,7 +30,7 @@ jobs:
           yarn install --immutable
           caps verify --toolchain
           mkdir -p acceptance
-          node prepare-formal.mjs
+          node prepare-formal.mjs apply
       - name: Original strict, canonical, entry, namespace and native test gates
         run: |
           set -euo pipefail
@@ -83,12 +83,14 @@ jobs:
           }
           console.log('Original UTF16/line-separator mask and local Dayjs format preserved.');
           JS
-          node prepare-formal.mjs
+          node prepare-formal.mjs verify
       - uses: actions/upload-artifact@v7.0.2
         if: success()
         with:
-          name: patlepat-formal-accepted-lock
-          path: yarn.lock
+          name: patlepat-formal-accepted-source
+          path: |
+            calcit.cirru
+            yarn.lock
           if-no-files-found: error
           retention-days: 30
       - uses: actions/upload-artifact@v7.0.2
