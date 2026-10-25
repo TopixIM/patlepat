@@ -24,7 +24,7 @@ const pkg=JSON.parse(p.manifests['package.json']);pkg.dependencies['@calcit/proc
 const age='npmMinimalAgeGate: 0\n\n', exemption='npmPreapprovedPackages:\n  - "@calcit/procs@0.30.1-alpha.5"\n';
 assert.equal(p.manifests['.yarnrc.yml'].split(age).length,2);
 assert.equal(p.manifests['.yarnrc.yml'].split(exemption).length,2);
-assert.equal(readFileSync('.yarnrc.yml','utf8'),p.manifests['.yarnrc.yml'].replace(age,'').replace(exemption,''));
+assert.equal(readFileSync('.yarnrc.yml','utf8'),p.manifests['.yarnrc.yml'].replace(age,'').replace(exemption,'').trimEnd()+'\n');
 const lock=s=>s.split('\n\n').map(b=>b.startsWith('"@calcit/procs@npm:')?b.replace(/^  checksum:.*$/m,'  checksum: runtime-checksum'):b).join('\n\n');
 assert.equal(lock(readFileSync('yarn.lock','utf8').replaceAll('0.30.1','0.30.1-alpha.5')),lock(p.manifests['yarn.lock']));
 writeFileSync('acceptance/source-evidence.json',JSON.stringify({beforeAfterBlob:p.blob,fullSourceViewsUnchanged:true,definitions:defs.length,attachedTests:defs.reduce((n,d)=>n+d.tests.length,0),moduleChanges:modules.length,protocolChanges:0,removedDisabledAgeGateAndObsoleteAlphaPreapprovalOnly:true}));
