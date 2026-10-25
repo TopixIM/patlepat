@@ -19,12 +19,13 @@ if(mode==='before'){
  assert.equal(blob(),p.blob);assert.deepEqual(views(),norm(p.before));guard();
  for(const name of ['count','foldl']){assert.ok(!p.before.defs.some(d=>d.id.endsWith('/'+name)));assert.ok(!JSON.stringify(p.before.namespaces).includes('"'+name+'"'));}
  const symbols=[];const collect=n=>{if(Array.isArray(n))n.forEach(collect);else if(n==='count'||n==='foldl')symbols.push(n);};for(const d of p.before.defs){collect(d.code);for(const t of d.tests)collect(t.code);}assert.equal(symbols.length,p.sites.length,'all old symbol occurrences are reviewed call heads, no local binding');
+ const fold=q('def','calcit.core/fold'),foldl=q('def','calcit.core/foldl');writeFileSync('acceptance/fold-contract.json',JSON.stringify({fold,foldl}));assert.deepEqual(fold.code,['defn','fold',['xs','initial','reducer'],['foldl','xs','initial','reducer']]);assert.deepEqual(fold.schema,foldl.schema);
  for(const[i,s]of p.sites.entries())if(s.region==='code'){
   writeFileSync('acceptance/before-subtree-'+i+'.json',run('calcit',['tree','show',s.definition,'--path','@'+s.path,'--format','json']));
   const args=['query','type-at',s.definition,'--path','@'+s.path+'.1','--format','json'];if(s.definition.startsWith('app.server/')||s.definition.startsWith('app.twig.')||s.definition.startsWith('app.updater.'))args.unshift('--entry','server');
   const t=JSON.parse(run('calcit',args));writeFileSync('acceptance/type-'+i+'.json',JSON.stringify(t));assert.deepEqual(t.diagnostics||[],[]);const m=t.data.static_methods.find(m=>m.name===replacements[s.head]);assert.equal(m.status,'proven');
   if(s.head==='count'){assert.ok(['calcit.core/&list:count','calcit.core/&map:count','calcit.core/&str:count'].includes(m.definition));assert.equal(m.call_types.returns,"'Number");assert.deepEqual(m.parameter_types,[]);assert.equal(m.rest_type,null);}
-  if(s.head==='foldl'){assert.equal(m.definition,'calcit.core/foldl');assert.match(t.data.inferred_type,/'List/);}
+  if(s.head==='foldl'){assert.equal(m.definition,'calcit.core/fold');assert.match(t.data.inferred_type,/'List/);}
   
  }
  const cancelEnvelope=JSON.parse(run('calcit',['--entry','server','query','type-at','app.server/on-exit!','--path','@3.3.2.1','--format','json']));assert.deepEqual(cancelEnvelope.diagnostics||[],[]);const cancel=cancelEnvelope.data;writeFileSync('acceptance/exit-task-type.json',JSON.stringify(cancel));
