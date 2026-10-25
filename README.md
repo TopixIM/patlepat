@@ -9,11 +9,24 @@ Patlepat
 保留既有 web rsync 和独立的 `/servers/calcium-workflow/` 后端部署目录、打包及 SSH 主机校验。生产排队且不取消运行中上传，一次 main SHA 预检跳过旧提交；不保证原子部署。沿用 PR secrets 缺失时跳过上传、生产缺失时报错的策略，fork PR 只构建。
 
 本分支正在迁移，尚不可部署。前后端协议、模板/卡片及存档需要一起验收，不能只更新前端后继续连接旧服务。
-开发使用精确配对的 Calcit/procs `0.30.1-alpha.5` 候选、caps 0.1.1、Node.js 24、Yarn 4.18.0，
-不把候选称为正式 0.30.1；模块使用精确正式 tag。移除未使用的 Lilac/Memof 直接依赖。
+开发使用精确配对的正式 Calcit/procs `0.30.1`、caps 0.1.1、Node.js 24、Yarn 4.18.0，
+模块使用兼容的精确正式 tag。移除未使用的 Lilac/Memof 直接依赖。
 CI 执行 `caps --strict --ci`、`yarn install --immutable`；本地不执行 Caps。
 `yarn build` 保留相对路径默认值，CI 通过 `VITE_BASE_URL` 指定 CDN。入口明确 browser/native，
-保留严格检查和全部应用 namespace 的定义检查，不新增测试框架或统计预算门禁。
+新增完整 `fix --workflow strict --verify`，保留原入口、全部应用 namespace 和原测试；
+不新增测试框架或统计预算门禁。Yarn 移除原先的 `npmMinimalAgeGate: 0` 与过期 alpha
+runtime 豁免，恢复默认隔离，保留 `enableScripts: false` 和原 Git 来源策略。
+
+本次正式版配对只补齐四个组件定义内七处自有回调的参数/返回合同，明确事件 Map、
+Enum dispatch 与 Prompt 的 String 输入；不改变业务表达式、公开模型、协议或附属测试。
+keydown、Prompt 外层及文本回调保留原真实返回行为，不强行补 Unit；Alerts 0.10.57 的
+Prompt 返回合同仍开放，上游已在 #104 跟踪并于更新正式版本修复，本兼容依赖图不冒充该修复。
+HUD 和原前后端部署路径不变，临时迁移 CI、事务脚本和宿主回放不进入正式 PR。
+本次正式图已通过完整 strict（0 诊断）、browser 82/native 103 定义检查、原生 12/12、
+原 native/JS 合同各 6/6（无排除）、immutable 安装及构建；临时回放确认原 UTF16/换行
+遮盖行为和本地 Dayjs 时钟格式不变。135 个定义完整前后视图仅有上述七处回调 hint 差异。
+以下既有业务/运行验收来自先前 alpha 迁移，不代表本次正式依赖图的多人 UI、账户存储、
+真实 WebSocket、退出保存或冷启动已经重验。上线前仍须协调后端工具链、备份与回滚。
 
 当前已用具名 Db/Template/Slot/Card/Message 等模型迁移模板创建、选择、删除及卡片增删，
 并保留模板 ID、按位置生成的槽位 ID/顺序、卡片作者和操作记录。无效模板/槽位引用不再

@@ -293,8 +293,19 @@
                     :placeholder "|text message..."
                     :value $ :draft state
                     :on-input $ fn (e d!)
+                      hint-fn $ {}
+                        :args $ [] (:: 'Map 'Tag 'Dynamic)
+                          :: 'Fn $ {}
+                            :args $ [] 'Enum
+                            :return 'Unit
+                        :return 'Unit
                       d! $ schema/Op :states cursor $ assoc state :draft (event-value e)
                     :on-keydown $ fn (e d!)
+                      hint-fn $ {} $ :args
+                        [] (:: 'Map 'Tag 'Dynamic)
+                          :: 'Fn $ {}
+                            :args $ [] 'Enum
+                            :return 'Unit
                       when
                         = 13 $ decode-map-as
                           .unwrap-or (get e :key-code) 0
@@ -303,7 +314,14 @@
                         .prevent-default! $ browser/event-host $ .unwrap (get e :event)
                   =< 8 nil
                   a $ {} (:style ui/link) (:inner-text "|发送")
-                    :on-click $ fn (e d!) (send-message d!)
+                    :on-click $ fn (e d!)
+                      hint-fn $ {}
+                        :args $ [] (:: 'Map 'Tag 'Dynamic)
+                          :: 'Fn $ {}
+                            :args $ [] 'Enum
+                            :return 'Unit
+                        :return 'Unit
+                      send-message d!
           :examples $ []
           :schema $ :: 'Fn $ {} (:return 'respo.schema/Component)
             :args $ [] (:: 'Map 'Dynamic 'Dynamic) (:: 'Map 'String 'app.schema/MessageView) (:: 'Map 'Tag 'Dynamic)
@@ -755,6 +773,12 @@
                             =< 8 nil
                             a $ {} (:style ui/link) (:inner-text "|删除")
                               :on-click $ fn (e d!)
+                                hint-fn $ {}
+                                  :args $ [] (:: 'Map 'Tag 'Dynamic)
+                                    :: 'Fn $ {}
+                                      :args $ [] 'Enum
+                                      :return 'Unit
+                                  :return 'Unit
                                 .show remove-plugin d! $ fn () $ d!
                                   schema/Op :template/remove $ :id template
                     .to-list
@@ -795,7 +819,14 @@
                       :color $ hsl 0 80 60
                       :cursor :pointer
                       :font-size 12
-                    fn (e d!) (on-remove d!)
+                    fn (e d!)
+                      hint-fn $ {}
+                        :args $ [] (:: 'Map 'Tag 'Dynamic)
+                          :: 'Fn $ {}
+                            :args $ [] 'Enum
+                            :return 'Unit
+                        :return 'Unit
+                      on-remove d!
                 <>
                   mask-card-text $ :text card
                   {} (:font-size 24) (:line-height |28px) (:font-family ui/font-code) (:vertical-align :middle)
@@ -822,7 +853,13 @@
                   =< 8 nil
                   a $ {} (:style ui/link) (:inner-text "|增加卡片")
                     :on-click $ fn (e d!)
+                      hint-fn $ {} $ :args
+                        [] (:: 'Map 'Tag 'Dynamic)
+                          :: 'Fn $ {}
+                            :args $ [] 'Enum
+                            :return 'Unit
                       .show create-plugin d! $ fn (text)
+                        hint-fn $ {} $ :args ([] 'String)
                         when-not (blank? text)
                           d! $ schema/Op :template/add-card $ schema/AddCard :template-id template-id :text text :slot-id (:id slot)
                 list-> ({})
