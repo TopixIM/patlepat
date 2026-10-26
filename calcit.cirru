@@ -259,7 +259,7 @@
                   {} (:padding 8) (:position :relative)
                   , styles
                 if
-                  > (count messages) 20
+                  > (.len messages) 20
                   a $ {}
                     :style $ merge ui/link $ {} (:position :absolute) (:top 8) (:right 12)
                     :inner-text "|清空"
@@ -1139,7 +1139,7 @@
             let
                 credentials $ decode-map-as raw $ :: 'List 'String
               if
-                = 2 $ count credentials
+                = 2 $ .len credentials
                 , credentials $ raise "|Expected two credential strings"
           :examples $ []
           :schema $ :: 'Fn $ {}
@@ -1388,7 +1388,7 @@
                   assoc :game $ Game :template-id $ Option :none
                   assoc :color |
               assert= initial $ decode-store wire
-              foldl
+              .fold
                 [] (RouteView :home) (RouteView :templates)
                   RouteView :profile $ {}
                     7 $ Option :some |Ada
@@ -1699,7 +1699,11 @@
             :args $ []
         'on-exit! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-exit! ()
-            foldl @*tasks &unit $ fn (acc task) (.cancel! task)
+            .fold @*tasks &unit $ fn (acc task)
+              hint-fn $ {}
+                :args $ [] 'Unit 'calcit.core/FfiTask
+                :return 'Unit
+              .cancel! task
             reset! *tasks $ []
             persist-db!
             quit! 0
@@ -1787,7 +1791,7 @@
                 (:none) (swap! *client-caches dissoc sid)
                 (:some session)
                   let
-                      next $ twig-container (:db reel) session $ count (:records reel)
+                      next $ twig-container (:db reel) session $ .len (:records reel)
                       changes $ changes-for (get @*client-caches sid) next
                     when
                       not $ empty? changes
@@ -1841,7 +1845,7 @@
                     :profile $ schema/RouteView :profile $ twig-members (:sessions db) (:users db)
                     _ $ schema/RouteView :unknown $ :router session
                 , :count
-                  count $ :sessions db
+                  .len $ :sessions db
                   , :color
                     if logged-in? (rand-hex-color!) |
                     , :messages
@@ -1885,8 +1889,8 @@
               assert= (Option :none)
                 :user $ .unwrap $ get (:messages view) |guest
               assert= false $ :logged-in? guest-view
-              assert= 0 $ count $ :messages guest-view
-              assert= 0 $ count $ :templates guest-view
+              assert= 0 $ .len $ :messages guest-view
+              assert= 0 $ .len $ :templates guest-view
               match
                 .unwrap $ :router profile
                 (:profile members)
@@ -1986,7 +1990,7 @@
                   :user-id $ .unwrap $ get (:sessions logged-out) 7
                 assert= (Option :none)
                   :user-id $ .unwrap $ get (:sessions wrong) 7
-                assert= 1 $ count $ :messages
+                assert= 1 $ .len $ :messages
                   .unwrap $ get (:sessions wrong) 7
                 assert= (Option :some |u)
                   :user-id $ .unwrap $ get (:sessions logged-in) 7
@@ -2037,13 +2041,13 @@
                 assert= expected $ :text result-message
                 assert= :quote $ :type result-message
                 assert= (Option :none) (:author-id result-message)
-                assert= 1 $ count $ :cards after0
-                assert= 1 $ count $ :cards after1
+                assert= 1 $ .len $ :cards after0
+                assert= 1 $ .len $ :cards after1
                 assert= (Option :none)
                   get (:cards after0) key0
                 assert= (Option :none)
                   get (:cards after1) key1
-                assert= 0 $ count $ :cards
+                assert= 0 $ .len $ :cards
                   .unwrap $ get
                     :slots $ .unwrap $ get (:templates shown2) |t
                     , |t-0
@@ -2051,7 +2055,7 @@
               :tags $ #{} :migration :unit
             %{} 'TestEntry (:name |chat-clear-keeps-five-recent-and-blot-state)
               :code $ quote $ let
-                  filled $ foldl (range 1 8) schema/database $ fn (db n)
+                  filled $ .fold (range 1 8) schema/database $ fn (db n)
                     hint-fn $ {}
                       :args $ [] 'app.schema/Db 'Number
                       :return 'app.schema/Db
@@ -2061,7 +2065,7 @@
                   blotted $ updater filled (schema/Op :message/blot-out |m4) 7 |blot 8
                   cleared $ updater blotted (schema/Op :message/clear) 7 |clear 100
                   messages $ :messages cleared
-                assert= 6 $ count messages
+                assert= 6 $ .len messages
                 assert= (Option :none) (get messages |m1)
                 assert= (Option :none) (get messages |m2)
                 assert= true $ .some? $ get messages |m3
@@ -2096,7 +2100,7 @@
                     &compare
                       :time $ .unwrap $ get messages b
                       :time $ .unwrap $ get messages a
-                retained $ foldl (take ordered 5) ({})
+                retained $ .fold (take ordered 5) ({})
                   fn (acc id)
                     hint-fn $ {}
                       :args $ [] (:: 'Map 'String 'app.schema/Message) 'String
@@ -2308,14 +2312,14 @@
               assert= "|小猫 🐈" $ :text card
               assert= (Option :some |u) (:author-id card)
               assert= 12 $ :time card
-              assert= 0 $ count $ :cards
+              assert= 0 $ .len $ :cards
                 .unwrap $ get
                   :slots $ .unwrap $ get (:templates removed-card) |t
                   , |t-0
-              assert= 0 $ count $ :templates removed-template
+              assert= 0 $ .len $ :templates removed-template
               assert= (Option :some |t)
                 :template-id $ :game removed-template
-              assert= 3 $ count $ :messages removed-template
+              assert= 3 $ .len $ :messages removed-template
               assert= "|创建了模板: {谁}在{哪里}。" $ :text creation-message
               assert= (Option :some |u) (:author-id creation-message)
               assert= (Option :none) (session/user-id schema/database 99)
@@ -2327,7 +2331,7 @@
                 slots $ map-indexed (re-find-all text slot-pattern)
                   fn (idx text)
                     schema/Slot :id (str op-id |- idx) :order idx :text text :cards $ {}
-              schema/Template :id op-id :text text :pieces (re-split text slot-pattern) :slots $ foldl slots ({})
+              schema/Template :id op-id :text text :pieces (re-split text slot-pattern) :slots $ .fold slots ({})
                 fn (acc slot)
                   hint-fn $ {}
                     :args $ [] (:: 'Map 'String 'app.schema/Slot) 'app.schema/Slot
@@ -2341,7 +2345,7 @@
                 template $ parse-template "|{谁}在{哪里}，{谁}笑。" |template
                 slots $ :slots template
               assert= ([] | "|在" "|，" "|笑。") (:pieces template)
-              assert= 3 $ count slots
+              assert= 3 $ .len slots
               assert= "|{谁}" $ :text $ .unwrap (get slots |template-0)
               assert= "|{哪里}" $ :text $ .unwrap (get slots |template-1)
               assert= "|{谁}" $ :text $ .unwrap (get slots |template-2)

@@ -44,8 +44,9 @@ jobs:
           set -euo pipefail
           test "$(calcit --version)" = "0.30.1"
           calcit calcit.cirru fix --workflow strict --verify
+          source_blob="$(git hash-object calcit.cirru)"
           calcit calcit.cirru edit format
-          git diff --exit-code -- calcit.cirru
+          test "$(git hash-object calcit.cirru)" = "$source_blob"
           calcit calcit.cirru --check-only
           calcit calcit.cirru --entry server --check-only
           calcit --check-only --ns app.client --ns app.comp --ns app.comp.chatroom --ns app.comp.container --ns app.comp.login --ns app.comp.navigation --ns app.comp.profile --ns app.comp.templates --ns app.comp.workspace --ns app.config --ns app.schema --summary-only --format json

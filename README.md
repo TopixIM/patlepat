@@ -4,6 +4,23 @@ Patlepat
 
 > tiny game.
 
+## 集合写法后续迁移：使用者影响
+
+本次保持正式 Calcit/procs 0.30.1 及既有依赖图，迁移 15 处 `count` 为 `.len`、
+5 处 `foldl` 为首选 `.fold`（含原附带测试），不改模板/卡片顺序、消息保留数量、
+存档、协议或认证逻辑。原过滤、取前五条、初值及 reducer 顺序保持；
+`.fold` 的正式核心实现按相同参数转发给 `foldl`，不是换用右折叠或省略初值。
+
+退出任务回调明确现有 `Unit, FfiTask -> Unit` 合同，不改取消、清空、保存或退出语句，
+不补返回值或强转。完整 135 定义、21 namespace 及元数据守卫仅允许上述写法和真实 hint；
+原测试名称、标签、期望值与断言保留，依赖/lock/质量基线及 `hud!` 不变。
+
+官方 Linux 0.30.1 受保护准备 CI 已通过前后完整 strict、双入口、browser 82/native 103
+定义检查（联合覆盖 135 本地定义）、原生各 12/12、原共享 native/JS 各 6/6 与构建。
+207 个生成 JS 模块只有消息清理中一行调用头从 `foldl` 改为 `fold`，
+其余 206 个逐字节相同；生成图比较不是完整 native 服务运行或退出保存验收。
+本轮不新增永久检查脚本，不操作真实账号、存档或生产后端，也不解除下文的上线限制。
+
 前端生产资源使用 `https://cos-sh.tiye.me/TopixIM/patlepat/`，同仓库 PR 上传到 `pr/<编号>/<run-id>/<attempt>/` 隔离路径。COS 仅上传 `dist/`；使用正式 `cos-upload-action@v1.2.0` 的 `public-base-url` 和内置 verify，不添加独立上传校验脚本。
 
 保留既有 web rsync 和独立的 `/servers/calcium-workflow/` 后端部署目录、打包及 SSH 主机校验。生产排队且不取消运行中上传，一次 main SHA 预检跳过旧提交；不保证原子部署。沿用 PR secrets 缺失时跳过上传、生产缺失时报错的策略，fork PR 只构建。
