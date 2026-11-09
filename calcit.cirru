@@ -226,7 +226,7 @@
             let
                 cursor $ decode-map-as
                   .unwrap-or (get states :cursor) ([])
-                  List Dynamic
+                  List app.schema/StateKey
                 state $ match (get states :data)
                   (:none) (schema/ChatState :draft |)
                   (:some raw)
@@ -503,7 +503,7 @@
             let
                 cursor $ decode-map-as
                   .unwrap-or (get states :cursor) ([])
-                  List Dynamic
+                  List app.schema/StateKey
                 state $ match (get states :data)
                   (:none) initial-state
                   (:some raw)
@@ -991,7 +991,7 @@
             :template/choose String
             :template/add-card app.schema/AddCard
             :template/remove-card app.schema/RemoveCard
-            :states (List Dynamic) Dynamic
+            :states (List app.schema/StateKey) Dynamic
             :effect/connect
             :reel/reset
             :reel/merge
@@ -1032,6 +1032,10 @@
             :cards $ Map String app.schema/Card
           :examples $ []
           :schema $ quote StructDef
+        'StateKey $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defunion StateKey Tag String Number
+          :examples $ []
+          :schema $ quote UnionDef
         'Store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Store (:logged-in? Bool) (:session app.schema/Session) (:reel-length Number)
             :user $ Option app.schema/UserView
@@ -1194,7 +1198,7 @@
                   Op :template/remove-card $ decode-map-as (data-map payload) 'app.schema/RemoveCard
                 (:states cursor state)
                   Op :states
-                    decode-map-as cursor $ List Dynamic
+                    decode-map-as cursor $ List app.schema/StateKey
                     , state
                 (:effect/connect) (Op :effect/connect)
                 (:reel/reset) (Op :reel/reset)
@@ -1227,6 +1231,12 @@
               assert= (Op :message/show-result)
                 decode-op $ parse-cirru-edn $ format-cirru-edn
                   encode-op $ Op :message/show-result
+              assert=
+                :: :states ([] :chat |child 0)
+                  {} $ :draft |hello
+                encode-op $ decode-op $ parse-cirru-edn
+                  format-cirru-edn $ :: :states ([] :chat |child 0)
+                    {} $ :draft |hello
             :tags $ #{} :migration :unit
         'decode-optional-route-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-optional-route-view (raw)
