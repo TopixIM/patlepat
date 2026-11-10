@@ -14,11 +14,16 @@
   :files $ {}
     'app.client $ %{} 'FileEntry
       :defs $ {}
+        '*drafts $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defref *drafts
+            schema/Drafts :login (schema/LoginState :username | :password |) :chat $ schema/ChatState :draft |
+          :examples $ []
+          :schema $ quote $ Ref app.schema/Drafts
         '*states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *states
             {} $ :cursor $ []
           :examples $ []
-          :schema $ quote $ Ref Dynamic
+          :schema $ quote $ Ref (Map Dynamic Dynamic)
         '*store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *store (Option :none)
           :examples $ []
@@ -54,13 +59,21 @@
         'dispatch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispatch! (op)
             match op
-              (:states cursor state)
-                reset! *states $ update-state-tree @*states cursor state
-              (:effect/connect) (connect!)
-              _ $ ws-send! $ schema/encode-op op
+              (app.schema/DraftOp edit)
+                match edit
+                  (:login state)
+                    reset! *drafts $ assoc @*drafts :login state
+                  (:chat state)
+                    reset! *drafts $ assoc @*drafts :chat state
+              (app.schema/Op action)
+                match action
+                  (:states cursor state)
+                    reset! *states $ decode-map-as (update-state-tree @*states cursor state) (Map Dynamic Dynamic)
+                  (:effect/connect) (connect!)
+                  _ $ ws-send! $ schema/encode-op action
             , &unit
           :examples $ []
-          :schema $ quote $ Fn app.schema/Op (-> Unit)
+          :schema $ quote $ Fn app.schema/ClientOp (-> Unit)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             println "|Running mode:" $ if config/dev? |dev |release
@@ -68,6 +81,7 @@
             connect!
             add-watch! *store :changes $ fn (store previous) (render-app!)
             add-watch! *states :changes $ fn (states previous) (render-app!)
+            add-watch! *drafts :changes $ fn (drafts previous) (render-app!)
             on-page-touch $ fn () $ match @*store
               (:none) (connect!)
               (:some store) &unit
@@ -107,9 +121,10 @@
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! ()
             if (js-present? client-errors) (hud! |error client-errors)
-              do (hud! |inactive nil) (remove-watch! *store :changes) (remove-watch! *states :changes) (clear-cache!) (render-app!)
+              do (hud! |inactive nil) (remove-watch! *store :changes) (remove-watch! *states :changes) (remove-watch! *drafts :changes) (clear-cache!) (render-app!)
                 add-watch! *store :changes $ fn (store previous) (render-app!)
                 add-watch! *states :changes $ fn (states previous) (render-app!)
+                add-watch! *drafts :changes $ fn (drafts previous) (render-app!)
                 println |Code-updated
             , &unit
           :examples $ []
@@ -117,9 +132,7 @@
         'render-app! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn render-app! ()
             render-with! (mount-target)
-              fn () $ comp-container
-                decode-map-as @*states $ Map Dynamic Dynamic
-                , @*store
+              fn () $ comp-container @*states @*drafts @*store dispatch!
               fn (raw)
                 hint-fn $ Fn app.schema/Op $ -> Unit
                 dispatch! $ schema/decode-op raw
@@ -222,15 +235,8 @@
     'app.comp.chatroom $ %{} 'FileEntry
       :defs $ {}
         'comp-chatroom $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defcomp comp-chatroom (states messages styles)
+          :code $ quote $ defcomp comp-chatroom (state messages styles on-draft)
             let
-                cursor $ decode-map-as
-                  .unwrap-or (get states :cursor) ([])
-                  List app.schema/StateKey
-                state $ match (get states :data)
-                  (:none) (schema/ChatState :draft |)
-                  (:some raw)
-                    decode-map-as (schema/data-map raw) 'app.schema/ChatState
                 ordered-messages $ -> messages
                   map-list-kv $ fn (id message) message
                   .sort-by $ fn (message) (:time message)
@@ -238,7 +244,7 @@
                   hint-fn $ Fn
                     Fn app.schema/Op $ -> Unit
                     -> Unit
-                  d! $ schema/Op :states cursor $ assoc state :draft |
+                  on-draft $ schema/DraftOp :chat $ assoc state :draft |
                   when
                     not $ blank? $ :draft state
                     d! $ schema/Op :message/create $ trim (:draft state)
@@ -258,7 +264,7 @@
                 if (empty? messages)
                   Option :some $ comp-placeholder "|没有消息"
                   Option :none
-                list->
+                keyed->
                   {} $ :style $ merge ui/expand
                     {} $ :padding-bottom 400
                   map-indexed ordered-messages $ fn (idx message)
@@ -276,7 +282,7 @@
                                 match (:author-id previous)
                                   (:none) false
                                   (:some previous-id) (= id previous-id)
-                      [] (:id message) (comp-message message merged?)
+                      keyed-component (:id message) (comp-message message merged?)
                 div
                   {} $ :style $ merge ui/row
                     {} $ :align-items :flex-start
@@ -288,7 +294,7 @@
                       hint-fn $ Fn respo.schema/RespoEvent
                         Fn app.schema/Op $ -> Unit
                         -> Unit
-                      d! $ schema/Op :states cursor $ assoc state :draft (event-value e)
+                      on-draft $ schema/DraftOp :chat $ assoc state :draft (event-value e)
                     :on-keydown $ fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
                         Fn app.schema/Op $ -> Unit
@@ -306,7 +312,10 @@
                         -> Unit
                       send-message d!
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) (Map String app.schema/MessageView) (Map Tag Dynamic) (-> respo.schema/Component) (:features :js-ffi)
+          :schema $ quote $ Fn app.schema/ChatState (Map String app.schema/MessageView) (Map Tag Dynamic)
+            Fn app.schema/DraftOp $ -> Unit
+            -> respo.schema/Component
+            :features :js-ffi
         'comp-message $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-message (message merged?)
             let
@@ -388,7 +397,7 @@
             respo-ui.core :refer $ hsl
             respo-ui.core :as ui
             respo.comp.space :refer $ =<
-            respo.core :refer $ defcomp <> list-> span div textarea button a
+            respo.core :refer $ defcomp <> keyed-> keyed-component span div textarea button a
             app.comp :refer $ comp-placeholder event-value
             |dayjs :default dayjs
             feather.core :refer $ comp-i
@@ -396,7 +405,7 @@
     'app.comp.container $ %{} 'FileEntry
       :defs $ {}
         'comp-container $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defcomp comp-container (states store)
+          :code $ quote $ defcomp comp-container (states drafts store on-draft)
             match store
               (:none) (comp-offline)
               (:some current)
@@ -407,7 +416,7 @@
                     comp-navigation (:logged-in? current) (:count current)
                     match (:user current)
                       (:none)
-                        comp-login $ >> states :login
+                        comp-login (:login drafts) on-draft
                       (:some user)
                         let
                             render-body $ fn (selected-tab)
@@ -415,8 +424,9 @@
                               div
                                 {} $ :style $ merge ui/expand ui/row
                                 comp-workspace (>> states :workspace) selected-tab (:templates current) (:game current) user
-                                comp-chatroom (>> states :chat) (:messages current)
+                                comp-chatroom (:chat drafts) (:messages current)
                                   {} $ :border-left $ str "|1px solid " (hsl 0 0 90)
+                                  , on-draft
                           match (:router current)
                             (:none) (<> "|No route")
                             (:some route)
@@ -448,7 +458,9 @@
                       Option :some $ comp-reel (:reel-length current) ({})
                       Option :none
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) (Option app.schema/Store) (-> respo.schema/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) app.schema/Drafts (Option app.schema/Store)
+            Fn app.schema/DraftOp $ -> Unit
+            -> respo.schema/Component
         'comp-offline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-offline ()
             div
@@ -499,55 +511,45 @@
     'app.comp.login $ %{} 'FileEntry
       :defs $ {}
         'comp-login $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defcomp comp-login (states)
-            let
-                cursor $ decode-map-as
-                  .unwrap-or (get states :cursor) ([])
-                  List app.schema/StateKey
-                state $ match (get states :data)
-                  (:none) initial-state
-                  (:some raw)
-                    decode-map-as (schema/data-map raw) 'app.schema/LoginState
-              div
-                {} $ :style $ merge ui/flex ui/center
-                div ({})
-                  div
-                    {} $ :style $ {}
-                    div ({})
-                      input $ {} (:placeholder |Username)
-                        :value $ :username state
-                        :style ui/input
-                        :on-input $ fn (e d!)
-                          hint-fn $ Fn respo.schema/RespoEvent
-                            Fn app.schema/Op $ -> Unit
-                            -> Unit
-                          d! $ schema/Op :states cursor $ assoc state :username (event-value e)
-                    =< nil 8
-                    div ({})
-                      input $ {} (:placeholder |Password)
-                        :value $ :password state
-                        :style ui/input
-                        :on-input $ fn (e d!)
-                          hint-fn $ Fn respo.schema/RespoEvent
-                            Fn app.schema/Op $ -> Unit
-                            -> Unit
-                          d! $ schema/Op :states cursor $ assoc state :password (event-value e)
+          :code $ quote $ defcomp comp-login (state on-draft)
+            div
+              {} $ :style $ merge ui/flex ui/center
+              div ({})
+                div
+                  {} $ :style $ {}
+                  div ({})
+                    input $ {} (:placeholder |Username)
+                      :value $ :username state
+                      :style ui/input
+                      :on-input $ fn (e d!)
+                        hint-fn $ Fn respo.schema/RespoEvent
+                          Fn app.schema/Op $ -> Unit
+                          -> Unit
+                        on-draft $ schema/DraftOp :login $ assoc state :username (event-value e)
                   =< nil 8
-                  div
-                    {} $ :style $ {} (:text-align :right)
-                    span $ {} (:inner-text "|Sign up")
-                      :style $ merge ui/link
-                      :on-click $ on-submit (:username state) (:password state) true
-                    =< 8 nil
-                    span $ {} (:inner-text "|Log in")
-                      :style $ merge ui/link
-                      :on-click $ on-submit (:username state) (:password state) false
+                  div ({})
+                    input $ {} (:placeholder |Password)
+                      :value $ :password state
+                      :style ui/input
+                      :on-input $ fn (e d!)
+                        hint-fn $ Fn respo.schema/RespoEvent
+                          Fn app.schema/Op $ -> Unit
+                          -> Unit
+                        on-draft $ schema/DraftOp :login $ assoc state :password (event-value e)
+                =< nil 8
+                div
+                  {} $ :style $ {} (:text-align :right)
+                  span $ {} (:inner-text "|Sign up")
+                    :style $ merge ui/link
+                    :on-click $ on-submit (:username state) (:password state) true
+                  =< 8 nil
+                  span $ {} (:inner-text "|Log in")
+                    :style $ merge ui/link
+                    :on-click $ on-submit (:username state) (:password state) false
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) (-> respo.schema/Component)
-        'initial-state $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ def initial-state (schema/LoginState :username | :password |)
-          :examples $ []
-          :schema $ quote app.schema/LoginState
+          :schema $ quote $ Fn app.schema/LoginState
+            Fn app.schema/DraftOp $ -> Unit
+            -> respo.schema/Component
         'on-submit $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-submit (username password signup?)
             fn (event dispatch!)
@@ -941,6 +943,10 @@
           :code $ quote $ defstruct ChatState (:draft String)
           :examples $ []
           :schema $ quote StructDef
+        'ClientOp $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defunion ClientOp DraftOp Op
+          :examples $ []
+          :schema $ quote UnionDef
         'Db $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Db
             :sessions $ Map Number app.schema/Session
@@ -948,6 +954,14 @@
             :messages $ Map String app.schema/Message
             :templates $ Map String app.schema/Template
             :game app.schema/Game
+          :examples $ []
+          :schema $ quote StructDef
+        'DraftOp $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defenum DraftOp (:login app.schema/LoginState) (:chat app.schema/ChatState)
+          :examples $ []
+          :schema $ quote EnumDef
+        'Drafts $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defstruct Drafts (:login app.schema/LoginState) (:chat app.schema/ChatState)
           :examples $ []
           :schema $ quote StructDef
         'Game $ %{} 'CodeEntry (:doc |)
