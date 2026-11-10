@@ -52,17 +52,15 @@
           :examples $ []
           :schema $ quote $ Fn (-> String) (:features :js-ffi)
         'dispatch! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn dispatch! (raw)
-            let
-                op $ schema/decode-op raw
-              match op
-                (:states cursor state)
-                  reset! *states $ update-state-tree @*states cursor state
-                (:effect/connect) (connect!)
-                _ $ ws-send! $ schema/encode-op op
+          :code $ quote $ defn dispatch! (op)
+            match op
+              (:states cursor state)
+                reset! *states $ update-state-tree @*states cursor state
+              (:effect/connect) (connect!)
+              _ $ ws-send! $ schema/encode-op op
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Unit)
+          :schema $ quote $ Fn app.schema/Op (-> Unit)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             println "|Running mode:" $ if config/dev? |dev |release
@@ -122,7 +120,9 @@
               fn () $ comp-container
                 decode-map-as @*states $ Map Dynamic Dynamic
                 , @*store
-              , dispatch!
+              fn (raw)
+                hint-fn $ Fn app.schema/Op $ -> Unit
+                dispatch! $ schema/decode-op raw
           :examples $ []
           :schema $ quote $ Fn (-> Unit)
         'simulate-login! $ %{} 'CodeEntry (:doc |)
@@ -554,9 +554,9 @@
               hint-fn $ Fn respo.schema/RespoEvent
                 Fn app.schema/Op $ -> Unit
                 -> Unit
-              dispatch! $ if signup?
-                schema/Op :user/sign-up $ [] username password
-                schema/Op :user/log-in $ [] username password
+              dispatch! $ let
+                  credentials $ assert-type ([] username password) (Tuple String String)
+                if signup? (schema/Op :user/sign-up credentials) (schema/Op :user/log-in credentials)
               browser/storage-set! (:storage-key config/site)
                 format-cirru-edn $ [] username password
           :examples $ []
@@ -978,8 +978,8 @@
           :schema $ quote StructDef
         'Op $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defenum Op (:session/connect) (:session/disconnect) (:session/remove-message String)
-            :user/log-in $ List String
-            :user/sign-up $ List String
+            :user/log-in $ Tuple String String
+            :user/sign-up $ Tuple String String
             :user/log-out
             :router/change app.schema/Router
             :message/create String
@@ -1095,14 +1095,10 @@
           :schema $ quote app.schema/Db
         'decode-credentials $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-credentials (raw)
-            let
-                credentials $ decode-map-as raw $ List String
-              if
-                = 2 $ .len credentials
-                , credentials $ raise "|Expected two credential strings"
+            decode-map-as raw $ Tuple String String
           :examples $ []
           :schema $ quote $ Fn Dynamic
-            -> $ List String
+            -> $ Tuple String String
         'decode-database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-database (raw)
             let
@@ -1362,7 +1358,8 @@
                   raise $ patch-error-message error
               assert= guest $ decode-store $ parse-cirru-edn (format-cirru-edn guest)
             :tags $ #{} :migration :unit
-        'encode-op $ %{} 'CodeEntry (:doc |)
+        'encode-op $ %{} 'CodeEntry
+          :doc "|Legacy WebSocket encoding intentionally produces anonymous Cirru EDN enum values."
           :code $ quote $ defn encode-op (op)
             match op
               (:session/connect) (:: :session/connect)
@@ -1404,7 +1401,7 @@
               (:reel/merge) (:: :reel/merge)
               (:effect/persist) (:: :effect/persist)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Op (-> AnyEnum)
+          :schema $ quote $ Fn app.schema/Op (-> AnyEnum) (:open :reflect)
         'normalize-card $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-card (raw)
             without-legacy-nil (data-map raw) :author-id
@@ -1898,14 +1895,14 @@
               :code $ quote $ let
                   connected $ updater schema/database (schema/Op :session/connect) 7 |connect 1
                   registered $ updater connected
-                    schema/Op :user/sign-up $ [] |Ada |secret
+                    schema/Op :user/sign-up $ assert-type ([] |Ada |secret) (Tuple String String)
                     , 7 |u 2
                   logged-out $ updater registered (schema/Op :user/log-out) 7 |logout 3
                   wrong $ updater logged-out
-                    schema/Op :user/log-in $ [] |Ada |wrong
+                    schema/Op :user/log-in $ assert-type ([] |Ada |wrong) (Tuple String String)
                     , 7 |wrong 4
                   logged-in $ updater wrong
-                    schema/Op :user/log-in $ [] |Ada |secret
+                    schema/Op :user/log-in $ assert-type ([] |Ada |secret) (Tuple String String)
                     , 7 |login 5
                 assert= (Option :some |u)
                   :user-id $ .unwrap $ get (:sessions registered) 7
@@ -1923,7 +1920,7 @@
               :code $ quote $ let
                   connected $ updater schema/database (schema/Op :session/connect) 7 |connect 1
                   registered $ updater connected
-                    schema/Op :user/sign-up $ [] |Ada |secret
+                    schema/Op :user/sign-up $ assert-type ([] |Ada |secret) (Tuple String String)
                     , 7 |u 2
                   created $ updater registered (schema/Op :template/create "|{谁}在{哪里}。") 7 |t 3
                   chosen $ updater created (schema/Op :template/choose |t) 7 |choose 4
@@ -2309,8 +2306,8 @@
         'log-in $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn log-in (db credentials sid op-id op-time)
             let
-                username $ .unwrap $ nth credentials 0
-                password $ .unwrap $ nth credentials 1
+                username $ nth credentials 0
+                password $ nth credentials 1
               match (find-user db username)
                 (:some user)
                   if
@@ -2321,7 +2318,7 @@
                 (:none)
                   session/add-message db sid op-id $ str "|No user named: " username
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db (List String) Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn app.schema/Db (Tuple String String) Number String Number (-> app.schema/Db)
         'log-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn log-out (db sid op-id op-time)
             session/update-session db sid $ fn (current)
@@ -2331,8 +2328,8 @@
         'sign-up $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sign-up (db credentials sid op-id op-time)
             let
-                username $ .unwrap $ nth credentials 0
-                password $ .unwrap $ nth credentials 1
+                username $ nth credentials 0
+                password $ nth credentials 1
               match (find-user db username)
                 (:some user)
                   session/add-message db sid op-id $ str "|Name is taken: " username
@@ -2343,7 +2340,7 @@
                     session/update-session next-db sid $ fn (current)
                       assoc current :user-id $ Option :some op-id
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db (List String) Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn app.schema/Db (Tuple String String) Number String Number (-> app.schema/Db)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater.user
           :require (app.schema :as schema) (app.updater.session :as session)
