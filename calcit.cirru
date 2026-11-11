@@ -18,29 +18,26 @@
           :code $ quote $ defref *drafts
             schema/Drafts :login (schema/LoginState :username | :password |) :chat $ schema/ChatState :draft |
           :examples $ []
-          :schema $ quote $ Ref app.schema/Drafts
+          :schema $ quote $ Ref schema/Drafts
         '*states $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *states
             {} $ :cursor $ []
           :examples $ []
           :schema $ quote $ Ref (Map Dynamic Dynamic)
         '*store $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *store (Option :none)
+          :code $ quote $ defref *store None
           :examples $ []
-          :schema $ quote $ Ref (Option app.schema/Store)
+          :schema $ quote $ Ref (Option schema/Store)
         '*wire-store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *wire-store nil
           :examples $ []
           :schema $ quote $ Ref Dynamic
         'connect! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn connect! () (reset! *wire-store nil)
-            reset! *store $ Option :none
+          :code $ quote $ defn connect! () (reset! *wire-store nil) (reset! *store None)
             ws-connect! (connection-url)
               {}
                 :on-open $ fn (event) (simulate-login!)
-                :on-close $ fn (event) (reset! *wire-store nil)
-                  reset! *store $ Option :none
-                  host/console-error! |Lost-connection
+                :on-close $ fn (event) (reset! *wire-store nil) (reset! *store None) (host/console-error! |Lost-connection)
                 :on-data on-server-data
             , &unit
           :examples $ []
@@ -73,7 +70,7 @@
                   _ $ ws-send! $ schema/encode-op action
             , &unit
           :examples $ []
-          :schema $ quote $ Fn app.schema/ClientOp (-> Unit)
+          :schema $ quote $ Fn schema/ClientOp (-> Unit)
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             println "|Running mode:" $ if config/dev? |dev |release
@@ -107,7 +104,7 @@
                           let
                               decoded $ schema/decode-store candidate
                             reset! *wire-store candidate
-                            reset! *store $ Option :some decoded
+                            reset! *store $ Some decoded
                         (:err error)
                           raise $ patch-error-message error
                   _ $ raise |Unsupported-server-message
@@ -207,7 +204,7 @@
                         d! $ schema/Op :router/change $ assoc schema/router :name (:name info)
                     <> $ :title info
           :examples $ []
-          :schema $ quote $ Fn Tag (List app.schema/Tab) (-> respo.schema/Component)
+          :schema $ quote $ Fn Tag (List schema/Tab) (-> respo.schema/Component)
         'event-value $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn event-value (event)
             match event
@@ -217,7 +214,7 @@
                   .unwrap-or (get fields :value) |
                   , String
           :examples $ []
-          :schema $ quote $ Fn app.comp/InputEvent (-> String)
+          :schema $ quote $ Fn InputEvent (-> String)
           :tests $ [] $ %{} 'TestEntry (:name |checked-text-input)
             :code $ quote $ do
               assert= "|小猫 🌸" $ event-value $ {} (:value "|小猫 🌸")
@@ -255,15 +252,15 @@
                   , styles
                 if
                   > (.len messages) 20
-                  Option :some $ a $ {}
+                  Some $ a $ {}
                     :style $ merge ui/link $ {} (:position :absolute) (:top 8) (:right 12)
                     :inner-text "|清空"
                     :on-click $ fn (e d!)
                       d! $ schema/Op :message/clear
-                  Option :none
+                  , None
                 if (empty? messages)
-                  Option :some $ comp-placeholder "|没有消息"
-                  Option :none
+                  Some $ comp-placeholder "|没有消息"
+                  , None
                 keyed->
                   {} $ :style $ merge ui/expand
                     {} $ :padding-bottom 400
@@ -312,8 +309,8 @@
                         -> Unit
                       send-message d!
           :examples $ []
-          :schema $ quote $ Fn app.schema/ChatState (Map String app.schema/MessageView) (Map Tag Dynamic)
-            Fn app.schema/DraftOp $ -> Unit
+          :schema $ quote $ Fn schema/ChatState (Map String schema/MessageView) (Map Tag Dynamic)
+            Fn schema/DraftOp $ -> Unit
             -> respo.schema/Component
             :features :js-ffi
         'comp-message $ %{} 'CodeEntry (:doc |)
@@ -347,12 +344,11 @@
                         :color $ hsl 0 0 80
                         :font-size 12
                         :font-family ui/font-fancy
-                    if (:blotted? message) (Option :none)
-                      Option :some $ span
-                        {} (:class-name |invisible-link)
-                          :on-click $ fn (e d!)
-                            d! $ schema/Op :message/blot-out $ :id message
-                        comp-i :x 10 $ hsl 0 80 80
+                    if (:blotted? message) None $ Some $ span
+                      {} (:class-name |invisible-link)
+                        :on-click $ fn (e d!)
+                          d! $ schema/Op :message/blot-out $ :id message
+                      comp-i :x 10 $ hsl 0 80 80
                 :quote $ div
                   {} $ :style $ merge ui/row
                     {} (:align-items :flex-start) (:margin "|4px 0")
@@ -383,7 +379,7 @@
                       :border-radius |4px
                 <> $ str "|Unknown message type: " $ :type message
           :examples $ []
-          :schema $ quote $ Fn app.schema/MessageView Bool (-> respo.schema/Component)
+          :schema $ quote $ Fn schema/MessageView Bool (-> respo.schema/Component)
         'format-message-time $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn format-message-time (time)
             decode-map-as
@@ -438,8 +434,8 @@
                                   <> $ to-lispy-string router
                     comp-status-color $ :color current
                     if dev?
-                      Option :some $ comp-inspect |Store current $ {} (:bottom 0) (:left 0) (:max-width |100%)
-                      Option :none
+                      Some $ comp-inspect |Store current $ {} (:bottom 0) (:left 0) (:max-width |100%)
+                      , None
                     comp-messages
                       filter-map-kv (:messages session)
                         fn (id message)
@@ -455,11 +451,11 @@
                           .unwrap $ get info :id
                           , 'String
                     if dev?
-                      Option :some $ comp-reel (:reel-length current) ({})
-                      Option :none
+                      Some $ comp-reel (:reel-length current) ({})
+                      , None
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) app.schema/Drafts (Option app.schema/Store)
-            Fn app.schema/DraftOp $ -> Unit
+          :schema $ quote $ Fn (Map Dynamic Dynamic) schema/Drafts (Option schema/Store)
+            Fn schema/DraftOp $ -> Unit
             -> respo.schema/Component
         'comp-offline $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-offline ()
@@ -547,8 +543,8 @@
                     :style $ merge ui/link
                     :on-click $ on-submit (:username state) (:password state) false
           :examples $ []
-          :schema $ quote $ Fn app.schema/LoginState
-            Fn app.schema/DraftOp $ -> Unit
+          :schema $ quote $ Fn schema/LoginState
+            Fn schema/DraftOp $ -> Unit
             -> respo.schema/Component
         'on-submit $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-submit (username password signup?)
@@ -564,7 +560,7 @@
           :examples $ []
           :schema $ quote $ Fn String String Bool
             -> $ Fn respo.schema/RespoEvent
-              Fn app.schema/Op $ -> Unit
+              Fn schema/Op $ -> Unit
               -> Unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.comp.login
@@ -655,7 +651,7 @@
               =< nil 48
               a $ {} (:href |https://github.com/TopixIM/patlepat) (:inner-text "|GitHub Address") (:target |_blank)
           :examples $ []
-          :schema $ quote $ Fn app.schema/UserView
+          :schema $ quote $ Fn schema/UserView
             Map Number $ Option String
             -> respo.schema/Component
             :features :js-ffi
@@ -693,7 +689,7 @@
                               :margin "|0 4px"
                               :vertical-align :bottom
           :examples $ []
-          :schema $ quote $ Fn app.schema/Template (-> respo.schema/Component)
+          :schema $ quote $ Fn schema/Template (-> respo.schema/Component)
         'comp-templates $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-templates (states templates selected)
             let
@@ -736,26 +732,25 @@
                               {}
                                 :color $ hsl 0 0 70
                                 :font-size 10
-                        if selected? (Option :none)
-                          Option :some $ div ({})
-                            a $ {} (:style ui/link) (:inner-text "|使用该模板")
-                              :on-click $ fn (e d!)
-                                d! $ schema/Op :template/choose $ :id template
-                            =< 8 nil
-                            a $ {} (:style ui/link) (:inner-text "|删除")
-                              :on-click $ fn (e d!)
-                                hint-fn $ Fn respo.schema/RespoEvent
-                                  Fn app.schema/Op $ -> Unit
-                                  -> Unit
-                                .show remove-plugin d! $ fn () $ d!
-                                  schema/Op :template/remove $ :id template
+                        if selected? None $ Some $ div ({})
+                          a $ {} (:style ui/link) (:inner-text "|使用该模板")
+                            :on-click $ fn (e d!)
+                              d! $ schema/Op :template/choose $ :id template
+                          =< 8 nil
+                          a $ {} (:style ui/link) (:inner-text "|删除")
+                            :on-click $ fn (e d!)
+                              hint-fn $ Fn respo.schema/RespoEvent
+                                Fn app.schema/Op $ -> Unit
+                                -> Unit
+                              .show remove-plugin d! $ fn () $ d!
+                                schema/Op :template/remove $ :id template
                 if (empty? templates)
-                  Option :some $ comp-placeholder "|No tempaltes"
-                  Option :none
+                  Some $ comp-placeholder "|No tempaltes"
+                  , None
                 .render template-editor
                 .render remove-plugin
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) (Map String app.schema/Template) (Option String) (-> respo.schema/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) (Map String schema/Template) (Option String) (-> respo.schema/Component)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.comp.templates
           :require (app.schema :as schema)
@@ -796,9 +791,9 @@
                   mask-card-text $ :text card
                   {} (:font-size 24) (:line-height |28px) (:font-family ui/font-code) (:vertical-align :middle)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Card Bool
+          :schema $ quote $ Fn schema/Card Bool
             Fn
-              Fn app.schema/Op $ -> Unit
+              Fn schema/Op $ -> Unit
               -> Unit
             -> respo.schema/Component
         'comp-slot $ %{} 'CodeEntry (:doc |)
@@ -835,11 +830,11 @@
                           d! $ schema/Op :template/remove-card $ schema/RemoveCard :template-id template-id :slot-id (:id slot) :card-id (:id card)
                 if
                   empty? $ :cards slot
-                  Option :some $ comp-placeholder "|没有卡片"
-                  Option :none
+                  Some $ comp-placeholder "|没有卡片"
+                  , None
                 .render create-plugin
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) app.schema/Slot String String (-> respo.schema/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) schema/Slot String String (-> respo.schema/Component)
         'comp-workspace $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defcomp comp-workspace (states selected-tab templates game user)
             div
@@ -850,7 +845,7 @@
                 comp-templates (>> states :templates) templates $ :template-id game
                 let
                     maybe-template $ match (:template-id game)
-                      (:none) (Option :none)
+                      (:none) None
                       (:some id) (get templates id)
                   match maybe-template
                     (:none)
@@ -888,7 +883,7 @@
                                   >> states $ :id slot
                                   , slot (:id template) (:id user)
           :examples $ []
-          :schema $ quote $ Fn (Map Dynamic Dynamic) Tag (Map String app.schema/Template) app.schema/Game app.schema/UserView (-> respo.schema/Component)
+          :schema $ quote $ Fn (Map Dynamic Dynamic) Tag (Map String schema/Template) schema/Game schema/UserView (-> respo.schema/Component)
         'mask-card-text $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn mask-card-text (text)
             decode-map-as
@@ -919,7 +914,7 @@
           :code $ quote $ def site
             schema/Site :port 11023 :title |Patlepat :icon |http://cdn.tiye.me/logo/topix.png :theme |#eeeeff :storage-key |patlepat :storage-file |storage.cirru
           :examples $ []
-          :schema $ quote app.schema/Site
+          :schema $ quote schema/Site
         'slot-pattern $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def slot-pattern |\{[\w\s\u4e00-\u9fa5]+\}
           :examples $ []
@@ -1064,7 +1059,7 @@
         'StoreWire $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct StoreWire (:logged-in? Bool) (:session app.schema/Session) (:reel-length Number)
             :user $ Option $ Map Tag Dynamic
-            :router Dynamic
+            :router $ Option app.schema/RouteView
             :count Number
             :color String
             :messages $ Map String app.schema/MessageView
@@ -1104,9 +1099,9 @@
             -> $ Map Tag Dynamic
         'database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def database
-            Db :sessions ({}) :users ({}) :messages ({}) :templates ({}) :game $ Game :template-id $ Option :none
+            Db :sessions ({}) :users ({}) :messages ({}) :templates ({}) :game $ Game :template-id None
           :examples $ []
-          :schema $ quote app.schema/Db
+          :schema $ quote Db
         'decode-credentials $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-credentials (raw)
             decode-map-as raw $ Tuple String String
@@ -1136,7 +1131,7 @@
                   assoc :game $ normalize-game $ .unwrap-or (get data :game) ({})
               decode-map-as normalized 'app.schema/Db
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> app.schema/Db)
+          :schema $ quote $ Fn Dynamic (-> Db)
           :tests $ [] $ %{} 'TestEntry (:name |legacy-game-archive-and-nominal-roundtrip)
             :code $ quote $ let
                 raw $ {}
@@ -1160,11 +1155,11 @@
                 message $ .unwrap $ get (:messages db) |m
               assert= "|小猫 🌸" $ :text card
               assert= 10 $ :time card
-              assert= (Option :some |u) (:author-id card)
-              assert= (Option :none) (:author-id message)
+              assert= (Some |u) (:author-id card)
+              assert= None $ :author-id message
               assert= false $ :blotted? message
               assert= ([] | "|。") (:pieces template)
-              assert= (Option :some |t)
+              assert= (Some |t)
                 :template-id $ :game db
               assert= db $ decode-database $ parse-cirru-edn (format-cirru-edn db)
               assert= true $ try
@@ -1217,7 +1212,7 @@
                 _ $ raise "|Unsupported operation"
               raise "|Expected operation enum"
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> app.schema/Op)
+          :schema $ quote $ Fn Dynamic (-> Op)
           :tests $ [] $ %{} 'TestEntry (:name |nominal-operation-wire-roundtrip)
             :code $ quote $ do
               assert=
@@ -1252,24 +1247,23 @@
           :code $ quote $ defn decode-optional-route-view (raw)
             if (enum? raw)
               match raw
-                (:none) (Option :none)
+                (:none) None
                 (:some payload)
-                  Option :some $ decode-route-view payload
+                  Some $ decode-route-view payload
                 _ $ raise "|Invalid route view option"
               raise "|Expected route view option"
           :examples $ []
           :schema $ quote $ Fn Dynamic
-            -> $ Option app.schema/RouteView
+            -> $ Option RouteView
         'decode-optional-string $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-optional-string (raw)
-            if (nil? raw) (Option :none)
-              if (enum? raw)
-                match raw
-                  (:none) (Option :none)
-                  (:some value)
-                    Option :some $ decode-map-as value 'String
-                  _ $ raise |Invalid-optional-string
-                Option :some $ decode-map-as raw 'String
+            if (nil? raw) None $ if (enum? raw)
+              match raw
+                (:none) None
+                (:some value)
+                  Some $ decode-map-as value 'String
+                _ $ raise |Invalid-optional-string
+              Some $ decode-map-as raw 'String
           :examples $ []
           :schema $ quote $ Fn Dynamic
             -> $ Option String
@@ -1289,12 +1283,12 @@
                 _ $ raise "|Invalid route view variant"
               raise "|Expected route view enum"
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> app.schema/RouteView)
+          :schema $ quote $ Fn Dynamic (-> RouteView)
         'decode-router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-router (raw)
             decode-map-as (normalize-router raw) 'app.schema/Router
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> app.schema/Router)
+          :schema $ quote $ Fn Dynamic (-> Router)
         'decode-store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-store (raw)
             let
@@ -1309,36 +1303,36 @@
                     .unwrap $ get data :templates
                     , normalize-template
                   assoc :game $ normalize-game $ .unwrap (get data :game)
+                  assoc :router $ decode-optional-route-view $ .unwrap (get data :router)
                 envelope $ decode-map-as normalized 'app.schema/StoreWire
                 user $ .map (:user envelope)
                   fn (payload) (decode-map-as payload 'app.schema/UserView)
-                route $ decode-optional-route-view $ :router envelope
-              Store :logged-in? (:logged-in? envelope) :session (:session envelope) :reel-length (:reel-length envelope) :user user :router route :count (:count envelope) :color (:color envelope) :messages (:messages envelope) :templates (:templates envelope) :game $ :game envelope
+              Store :logged-in? (:logged-in? envelope) :session (:session envelope) :reel-length (:reel-length envelope) :user user :router (:router envelope) :count (:count envelope) :color (:color envelope) :messages (:messages envelope) :templates (:templates envelope) :game $ :game envelope
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> app.schema/Store)
+          :schema $ quote $ Fn Dynamic (-> Store)
           :tests $ [] $ %{} 'TestEntry
             :name |nominal-routes-message-authors-and-incremental-patch
             :code $ quote $ let
-                public-user $ UserView :id |u :name |Ada :nickname (Option :some |Ada) :avatar $ Option :none
+                public-user $ UserView :id |u :name |Ada :nickname (Some |Ada) :avatar None
                 current $ -> session (assoc :id 7)
-                  assoc :user-id $ Option :some |u
-                card $ Card :id |card :text "|小猫 🌸" :time 10 :author-id $ Option :some |u
+                  assoc :user-id $ Some |u
+                card $ Card :id |card :text "|小猫 🌸" :time 10 :author-id $ Some |u
                 slot $ Slot :id |t-0 :order 0 :text "|{谁}" :cards $ {} (|card card)
                 template $ Template :id |t :text "|{谁}。" :pieces ([] | "|。") :slots $ {} (|t-0 slot)
-                message $ MessageView :id |m :text "|hello 🌸" :time 11 :type :message :author-id (Option :some |u) :blotted? false :user $ Option :some public-user
-                initial $ Store :logged-in? true :session current :reel-length 1 :user (Option :some public-user) :router
-                  Option :some $ RouteView :home
+                message $ MessageView :id |m :text "|hello 🌸" :time 11 :type :message :author-id (Some |u) :blotted? false :user $ Some public-user
+                initial $ Store :logged-in? true :session current :reel-length 1 :user (Some public-user) :router
+                  Some $ RouteView :home
                   , :count 1 :color |#abcdef :messages
                     {} $ |m message
                     , :templates
                       {} $ |t template
-                      , :game $ Game :template-id (Option :some |t)
+                      , :game $ Game :template-id (Some |t)
                 wire $ parse-cirru-edn $ format-cirru-edn initial
                 changed $ -> initial
-                  assoc :router $ Option :some $ RouteView :profile
+                  assoc :router $ Some $ RouteView :profile
                     {}
-                      7 $ Option :some |Ada
-                      8 $ Option :none
+                      7 $ Some |Ada
+                      8 None
                   assoc :messages $ {} $ |m (assoc message :text |edited)
                   assoc :templates $ {} $ |t
                     assoc template :slots $ {} $ |t-0
@@ -1347,23 +1341,23 @@
                 patched $ try-patch-twig wire $ decode-changes
                   parse-cirru-edn $ format-cirru-edn changes
                 guest $ -> initial (assoc :logged-in? false)
-                  assoc :session $ assoc current :user-id $ Option :none
-                  assoc :user $ Option :none
-                  assoc :router $ Option :none
+                  assoc :session $ assoc current :user-id None
+                  assoc :user None
+                  assoc :router None
                   assoc :messages $ {}
                   assoc :templates $ {}
-                  assoc :game $ Game :template-id $ Option :none
+                  assoc :game $ Game :template-id None
                   assoc :color |
               assert= initial $ decode-store wire
               .fold
                 [] (RouteView :home) (RouteView :templates)
                   RouteView :profile $ {}
-                    7 $ Option :some |Ada
-                    8 $ Option :none
+                    7 $ Some |Ada
+                    8 None
                   RouteView :unknown $ assoc router :name :other
                 , &unit $ fn (acc route)
                   let
-                      expected $ assoc initial :router $ Option :some route
+                      expected $ assoc initial :router $ Some route
                     assert= expected $ decode-store $ parse-cirru-edn (format-cirru-edn expected)
               match patched
                 (:ok value)
@@ -1415,7 +1409,7 @@
               (:reel/merge) (:: :reel/merge)
               (:effect/persist) (:: :effect/persist)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Op (-> AnyEnum) (:open :reflect)
+          :schema $ quote $ Fn Op (-> AnyEnum) (:open :reflect)
         'normalize-card $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-card (raw)
             without-legacy-nil (data-map raw) :author-id
@@ -1468,11 +1462,11 @@
           :code $ quote $ defn normalize-optional-user-view (raw)
             if (enum? raw)
               match raw
-                (:none) (Option :none)
+                (:none) None
                 (:some payload)
                   let
                       normalized $ -> (data-map payload) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
-                    Option :some normalized
+                    Some normalized
                 _ $ raise "|Invalid user view option"
               raise "|Expected user view option"
           :examples $ []
@@ -1529,14 +1523,14 @@
             -> $ Map Tag Dynamic
         'router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def router
-            Router :name :home :title (Option :none) :data nil :router nil
+            Router :name :home :title None :data nil :router nil
           :examples $ []
-          :schema $ quote app.schema/Router
+          :schema $ quote Router
         'session $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def session
-            Session :id 0 :user-id (Option :none) :nickname (Option :none) :router router :messages $ {}
+            Session :id 0 :user-id None :nickname None :router router :messages $ {}
           :examples $ []
-          :schema $ quote app.schema/Session
+          :schema $ quote Session
         'without-legacy-nil $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn without-legacy-nil (data key)
             match
@@ -1557,7 +1551,7 @@
         '*client-caches $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *client-caches ({})
           :examples $ []
-          :schema $ quote $ Ref (Map Number app.schema/Store)
+          :schema $ quote $ Ref (Map Number schema/Store)
         '*initial-db $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *initial-db
             if (path-exists? storage-file)
@@ -1567,16 +1561,16 @@
                 (:err message) (raise message)
               , schema/database
           :examples $ []
-          :schema $ quote $ Ref app.schema/Db
+          :schema $ quote $ Ref schema/Db
         '*reader-reel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *reader-reel @*reel
           :examples $ []
-          :schema $ quote $ Ref (cumulo-reel.core/ReelState app.schema/Db)
+          :schema $ quote $ Ref (ReelState schema/Db)
         '*reel $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *reel
             ReelState :base @*initial-db :db @*initial-db :records ([]) :merged? false
           :examples $ []
-          :schema $ quote $ Ref (cumulo-reel.core/ReelState app.schema/Db)
+          :schema $ quote $ Ref (ReelState schema/Db)
         '*sync-pending? $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *sync-pending? false
           :examples $ []
@@ -1593,7 +1587,7 @@
               (:some previous)
                 diff-twig previous next $ {} $ :key :id
           :examples $ []
-          :schema $ quote $ Fn (Option app.schema/Store) app.schema/Store
+          :schema $ quote $ Fn (Option schema/Store) schema/Store
             -> $ List recollect.schema/change-op
         'dispatch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispatch! (op sid)
@@ -1617,7 +1611,7 @@
                     _ next
             , &unit
           :examples $ []
-          :schema $ quote $ Fn app.schema/Op Number (-> Unit)
+          :schema $ quote $ Fn schema/Op Number (-> Unit)
         'get-backup-path! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn get-backup-path! ()
             let
@@ -1662,12 +1656,12 @@
           :code $ quote $ defn parse-database (content)
             schema/decode-database $ parse-cirru-edn content
           :examples $ []
-          :schema $ quote $ Fn String (-> app.schema/Db)
+          :schema $ quote $ Fn String (-> schema/Db)
         'parse-op $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn parse-op (content)
             schema/decode-op $ parse-cirru-edn content
           :examples $ []
-          :schema $ quote $ Fn String (-> app.schema/Op)
+          :schema $ quote $ Fn String (-> schema/Op)
         'persist-db! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn persist-db! ()
             let
@@ -1744,13 +1738,13 @@
                         (:too-large) (eprintln |Patch-exceeds-WebSocket-message-limit sid)
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Number (cumulo-reel.core/ReelState app.schema/Db) (-> Unit)
+          :schema $ quote $ Fn Number (ReelState schema/Db) (-> Unit)
         'sync-clients! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sync-clients! (reel)
             wss-each! $ fn (sid) (sync-client! sid reel)
             , &unit
           :examples $ []
-          :schema $ quote $ Fn (cumulo-reel.core/ReelState app.schema/Db) (-> Unit)
+          :schema $ quote $ Fn (ReelState schema/Db) (-> Unit)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.server
           :require (app.schema :as schema)
@@ -1795,37 +1789,35 @@
                         {}
                       , :templates
                         if logged-in? (:templates db) ({})
-                        , :game $ if logged-in? (:game db)
-                          schema/Game :template-id $ Option :none
+                        , :game $ if logged-in? (:game db) (schema/Game :template-id None)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db app.schema/Session Number (-> app.schema/Store)
+          :schema $ quote $ Fn schema/Db schema/Session Number (-> schema/Store)
           :tests $ [] $ %{} 'TestEntry
             :name |typed-public-users-message-authors-and-guest-view
             :code $ quote $ let
-                user $ schema/User :id |u :name |Ada :nickname (Option :some |Ada) :avatar (Option :none) :password |private-hash
+                user $ schema/User :id |u :name |Ada :nickname (Some |Ada) :avatar None :password |private-hash
                 current $ -> schema/session (assoc :id 7)
-                  assoc :user-id $ Option :some |u
+                  assoc :user-id $ Some |u
                 guest $ assoc schema/session :id 8
                 db $ -> schema/database
                   assoc :users $ {} $ |u user
                   assoc :sessions $ {} (7 current) (8 guest)
                   assoc :messages $ {}
-                    |auth $ schema/Message :id |m :text |hello :time 1 :type :message :author-id (Option :some |u) :blotted? false
-                    |guest $ schema/Message :id |m :text |hello :time 1 :type :message :author-id (Option :none) :blotted? false
+                    |auth $ schema/Message :id |m :text |hello :time 1 :type :message :author-id (Some |u) :blotted? false
+                    |guest $ schema/Message :id |m :text |hello :time 1 :type :message :author-id None :blotted? false
                 view $ twig-container db current 4
                 public-user $ .unwrap $ :user view
                 guest-view $ twig-container db guest 4
                 profile $ twig-container db
                   assoc current :router $ assoc schema/router :name :profile
                   , 4
-              assert= (Option :none)
-                get (&struct:to-map public-user) :password
+              assert= None $ get (&struct:to-map public-user) :password
               assert= |Ada $ :name public-user
               assert= 4 $ :reel-length view
-              assert= (Option :some public-user)
+              assert= (Some public-user)
                 :user $ .unwrap $ get (:messages view) |auth
-              assert= (Option :none)
-                :user $ .unwrap $ get (:messages view) |guest
+              assert= None $ :user $ .unwrap
+                get (:messages view) |guest
               assert= false $ :logged-in? guest-view
               assert= 0 $ .len $ :messages guest-view
               assert= 0 $ .len $ :templates guest-view
@@ -1834,8 +1826,8 @@
                 (:profile members)
                   assert=
                     {}
-                      7 $ Option :some |Ada
-                      8 $ Option :none
+                      7 $ Some |Ada
+                      8 None
                     , members
                 _ $ raise "|Expected profile view"
             :tags $ #{} :migration :unit
@@ -1844,13 +1836,13 @@
             filter-map-kv sessions $ fn (id session)
               let
                   name $ match (:user-id session)
-                    (:none) (Option :none)
+                    (:none) None
                     (:some user-id)
                       .map (get users user-id)
                         fn (user) (:name user)
                 MapEntryDecision :keep id name
           :examples $ []
-          :schema $ quote $ Fn (Map Number app.schema/Session) (Map String app.schema/User)
+          :schema $ quote $ Fn (Map Number schema/Session) (Map String schema/User)
             -> $ Map Number $ Option String
         'twig-message $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn twig-message (message users)
@@ -1859,7 +1851,7 @@
                 fn (id) (get users id)
               , twig-user
           :examples $ []
-          :schema $ quote $ Fn app.schema/Message (Map String app.schema/User) (-> app.schema/MessageView)
+          :schema $ quote $ Fn schema/Message (Map String schema/User) (-> schema/MessageView)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.twig.container
           :require
@@ -1872,7 +1864,7 @@
           :code $ quote $ defn twig-user (user)
             schema/UserView :id (:id user) :name (:name user) :nickname (:nickname user) :avatar $ :avatar user
           :examples $ []
-          :schema $ quote $ Fn app.schema/User (-> app.schema/UserView)
+          :schema $ quote $ Fn schema/User (-> schema/UserView)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.twig.user
           :require $ app.schema :as schema
@@ -1903,7 +1895,7 @@
               (:reel/merge) db
               (:effect/persist) db
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db app.schema/Op Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db schema/Op Number String Number (-> schema/Db)
           :tests $ []
             %{} 'TestEntry (:name |account-login-notifications-and-logout)
               :code $ quote $ let
@@ -1918,15 +1910,15 @@
                   logged-in $ updater wrong
                     schema/Op :user/log-in $ assert-type ([] |Ada |secret) (Tuple String String)
                     , 7 |login 5
-                assert= (Option :some |u)
+                assert= (Some |u)
                   :user-id $ .unwrap $ get (:sessions registered) 7
-                assert= (Option :none)
-                  :user-id $ .unwrap $ get (:sessions logged-out) 7
-                assert= (Option :none)
-                  :user-id $ .unwrap $ get (:sessions wrong) 7
+                assert= None $ :user-id $ .unwrap
+                  get (:sessions logged-out) 7
+                assert= None $ :user-id $ .unwrap
+                  get (:sessions wrong) 7
                 assert= 1 $ .len $ :messages
                   .unwrap $ get (:sessions wrong) 7
-                assert= (Option :some |u)
+                assert= (Some |u)
                   :user-id $ .unwrap $ get (:sessions logged-in) 7
               :tags $ #{} :migration :unit
             %{} 'TestEntry
@@ -1974,13 +1966,11 @@
                 assert= chosen not-ready
                 assert= expected $ :text result-message
                 assert= :quote $ :type result-message
-                assert= (Option :none) (:author-id result-message)
+                assert= None $ :author-id result-message
                 assert= 1 $ .len $ :cards after0
                 assert= 1 $ .len $ :cards after1
-                assert= (Option :none)
-                  get (:cards after0) key0
-                assert= (Option :none)
-                  get (:cards after1) key1
+                assert= None $ get (:cards after0) key0
+                assert= None $ get (:cards after1) key1
                 assert= 0 $ .len $ :cards
                   .unwrap $ get
                     :slots $ .unwrap $ get (:templates shown2) |t
@@ -1998,14 +1988,13 @@
                   cleared $ updater blotted (schema/Op :message/clear) 7 |clear 100
                   messages $ :messages cleared
                 assert= 6 $ .len messages
-                assert= (Option :none) (get messages |m1)
-                assert= (Option :none) (get messages |m2)
+                assert= None $ get messages |m1
+                assert= None $ get messages |m2
                 assert= true $ .some? $ get messages |m3
                 assert= true $ .some? $ get messages |m7
                 assert= true $ :blotted? $ .unwrap (get messages |m4)
                 assert= "|清除了消息" $ :text $ .unwrap (get messages |clear)
-                assert= (Option :none)
-                  :author-id $ .unwrap $ get messages |clear
+                assert= None $ :author-id $ .unwrap (get messages |clear)
               :tags $ #{} :migration :unit
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater
@@ -2020,7 +2009,7 @@
               (:some message)
                 assoc db :messages $ assoc (:messages db) message-id $ assoc message :blotted? true
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
         'clear $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn clear (db sid op-id op-time)
             let
@@ -2037,7 +2026,7 @@
                     assoc acc id $ .unwrap $ get messages id
               record-operation (assoc db :messages retained) sid op-id op-time "|清除了消息"
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number (-> schema/Db)
         'compose-result $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn compose-result (template insertions)
             join-string
@@ -2046,7 +2035,7 @@
                   str piece $ .unwrap-or (nth insertions idx) |
               , |
           :examples $ []
-          :schema $ quote $ Fn app.schema/Template (List String) (-> String)
+          :schema $ quote $ Fn schema/Template (List String) (-> String)
           :tests $ [] $ %{} 'TestEntry (:name |trailing-piece-and-no-slot-template)
             :code $ quote $ do
               assert= "|小猫在公园。" $ compose-result
@@ -2062,13 +2051,13 @@
           :code $ quote $ defn create-message (db text sid op-id op-time)
             assoc db :messages $ assoc (:messages db) op-id $ schema/Message :id op-id :text text :time op-time :type :message :author-id (session/user-id db sid) :blotted? false
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
         'first-card-key $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn first-card-key (slot)
             first $ map-list-kv (:cards slot)
               fn (id card) id
           :examples $ []
-          :schema $ quote $ Fn app.schema/Slot
+          :schema $ quote $ Fn schema/Slot
             -> $ Option String
         'ordered-slots $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn ordered-slots (template)
@@ -2078,13 +2067,13 @@
               fn (a b)
                 &compare (:order a) (:order b)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Template
-            -> $ List app.schema/Slot
+          :schema $ quote $ Fn schema/Template
+            -> $ List schema/Slot
         'record-operation $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn record-operation (db sid op-id op-time text)
             assoc db :messages $ assoc (:messages db) op-id $ schema/Message :id op-id :text text :time op-time :type :operation :author-id (session/user-id db sid) :blotted? false
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number String (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number String (-> schema/Db)
         'show-result $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn show-result (db sid op-id op-time)
             match
@@ -2114,10 +2103,10 @@
                                 fn () slot
                                 fn (key)
                                   assoc slot :cards $ dissoc (:cards slot) key
-                        assoc :messages $ assoc (:messages db) op-id $ schema/Message :id op-id :text content :time op-time :type :quote :author-id (Option :none) :blotted? false
+                        assoc :messages $ assoc (:messages db) op-id $ schema/Message :id op-id :text content :time op-time :type :quote :author-id None :blotted? false
                     , db
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number (-> schema/Db)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater.message
           :require (app.schema :as schema) (app.updater.session :as session)
@@ -2138,23 +2127,23 @@
             update-session db sid $ fn (session)
               assoc session :messages $ assoc (:messages session) id $ schema/Notification :id id :text text
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String String (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String String (-> schema/Db)
         'connect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn connect (db sid op-id op-time)
             assoc db :sessions $ assoc (:sessions db) sid $ assoc schema/session :id sid
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number (-> schema/Db)
         'disconnect $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn disconnect (db sid op-id op-time)
             assoc db :sessions $ dissoc (:sessions db) sid
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number (-> schema/Db)
         'remove-message $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn remove-message (db message-id sid op-id op-time)
             update-session db sid $ fn (session)
               assoc session :messages $ dissoc (:messages session) message-id
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
         'update-session $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-session (db sid f)
             match
@@ -2163,16 +2152,16 @@
                 assoc db :sessions $ assoc (:sessions db) sid $ f session
               (:none) db
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number
-            Fn app.schema/Session $ -> app.schema/Session
-            -> app.schema/Db
+          :schema $ quote $ Fn schema/Db Number
+            Fn schema/Session $ -> schema/Session
+            -> schema/Db
         'user-id $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn user-id (db sid)
             .and-then
               get (:sessions db) sid
               fn (session) (:user-id session)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number
+          :schema $ quote $ Fn schema/Db Number
             -> $ Option String
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater.session
@@ -2185,7 +2174,7 @@
               fn (slot)
                 assoc slot :cards $ assoc (:cards slot) op-id $ schema/Card :id op-id :text (:text payload) :author-id (session/user-id db sid) :time op-time
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db app.schema/AddCard Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db schema/AddCard Number String Number (-> schema/Db)
         'choose $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn choose (db template-id sid op-id op-time)
             let
@@ -2194,22 +2183,22 @@
                   fn () |
                   fn (template) (:text template)
               message/record-operation
-                assoc db :game $ schema/Game :template-id $ Option :some template-id
+                assoc db :game $ schema/Game :template-id $ Some template-id
                 , sid op-id op-time $ str "|切换了模板: " text
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
         'create-template $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn create-template (db text sid op-id op-time)
             message/record-operation
               assoc db :templates $ assoc (:templates db) op-id $ parse-template text op-id
               , sid op-id op-time $ str "|创建了模板: " text
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
           :tests $ [] $ %{} 'TestEntry (:name |typed-template-card-lifecycle-and-author)
             :code $ quote $ let
                 db $ assoc schema/database :sessions $ {}
                   7 $ -> schema/session (assoc :id 7)
-                    assoc :user-id $ Option :some |u
+                    assoc :user-id $ Some |u
                 created $ create-template db "|{谁}在{哪里}。" 7 |t 10
                 chosen $ choose created |t 7 |choose 11
                 with-card $ add-card chosen (schema/AddCard :template-id |t :slot-id |t-0 :text "|小猫 🐈") 7 |card 12
@@ -2219,22 +2208,22 @@
                 removed-card $ remove-card with-card (schema/RemoveCard :template-id |t :slot-id |t-0 :card-id |card) 7 |remove-card 13
                 removed-template $ remove-template removed-card |t 7 |remove-template 14
                 creation-message $ .unwrap $ get (:messages created) |t
-              assert= (Option :some |t)
+              assert= (Some |t)
                 :template-id $ :game chosen
               assert= "|小猫 🐈" $ :text card
-              assert= (Option :some |u) (:author-id card)
+              assert= (Some |u) (:author-id card)
               assert= 12 $ :time card
               assert= 0 $ .len $ :cards
                 .unwrap $ get
                   :slots $ .unwrap $ get (:templates removed-card) |t
                   , |t-0
               assert= 0 $ .len $ :templates removed-template
-              assert= (Option :some |t)
+              assert= (Some |t)
                 :template-id $ :game removed-template
               assert= 3 $ .len $ :messages removed-template
               assert= "|创建了模板: {谁}在{哪里}。" $ :text creation-message
-              assert= (Option :some |u) (:author-id creation-message)
-              assert= (Option :none) (session/user-id schema/database 99)
+              assert= (Some |u) (:author-id creation-message)
+              assert= None $ session/user-id schema/database 99
               assert= with-card $ add-card with-card (schema/AddCard :template-id |missing :slot-id |no-slot :text "|not inserted") 7 |unused 15
             :tags $ #{} :migration :unit
         'parse-template $ %{} 'CodeEntry (:doc |)
@@ -2248,7 +2237,7 @@
                   hint-fn $ Fn (Map String app.schema/Slot) app.schema/Slot $ -> (Map String app.schema/Slot)
                   assoc acc (:id slot) slot
           :examples $ []
-          :schema $ quote $ Fn String String (-> app.schema/Template)
+          :schema $ quote $ Fn String String (-> schema/Template)
           :tests $ [] $ %{} 'TestEntry (:name |unicode-and-repeated-slots-preserve-order)
             :code $ quote $ let
                 template $ parse-template "|{谁}在{哪里}，{谁}笑。" |template
@@ -2268,7 +2257,7 @@
               fn (slot)
                 assoc slot :cards $ dissoc (:cards slot) (:card-id payload)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db app.schema/RemoveCard Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db schema/RemoveCard Number String Number (-> schema/Db)
         'remove-template $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn remove-template (db template-id sid op-id op-time)
             let
@@ -2280,7 +2269,7 @@
                 assoc db :templates $ dissoc (:templates db) template-id
                 , sid op-id op-time $ str "|删除了模板: " text
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db String Number String Number (-> schema/Db)
         'update-slot $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn update-slot (db template-id slot-id f)
             match
@@ -2294,9 +2283,9 @@
                     assoc db :templates $ assoc (:templates db) template-id $ assoc template :slots
                       assoc (:slots template) slot-id $ f slot
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String String
-            Fn app.schema/Slot $ -> app.schema/Slot
-            -> app.schema/Db
+          :schema $ quote $ Fn schema/Db String String
+            Fn schema/Slot $ -> schema/Slot
+            -> schema/Db
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater.template
           :require
@@ -2315,8 +2304,8 @@
               fn (user)
                 = username $ :name user
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db String
-            -> $ Option app.schema/User
+          :schema $ quote $ Fn schema/Db String
+            -> $ Option schema/User
         'log-in $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn log-in (db credentials sid op-id op-time)
             let
@@ -2327,18 +2316,17 @@
                   if
                     = (md5 password) (:password user)
                     session/update-session db sid $ fn (current)
-                      assoc current :user-id $ Option :some $ :id user
+                      assoc current :user-id $ Some $ :id user
                     session/add-message db sid op-id $ str "|Wrong password for " username
                 (:none)
                   session/add-message db sid op-id $ str "|No user named: " username
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db (Tuple String String) Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db (Tuple String String) Number String Number (-> schema/Db)
         'log-out $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn log-out (db sid op-id op-time)
-            session/update-session db sid $ fn (current)
-              assoc current :user-id $ Option :none
+            session/update-session db sid $ fn (current) (assoc current :user-id None)
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db Number String Number (-> schema/Db)
         'sign-up $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn sign-up (db credentials sid op-id op-time)
             let
@@ -2349,12 +2337,12 @@
                   session/add-message db sid op-id $ str "|Name is taken: " username
                 (:none)
                   let
-                      new-user $ schema/User :id op-id :name username :nickname (Option :some username) :avatar (Option :none) :password $ md5 password
+                      new-user $ schema/User :id op-id :name username :nickname (Some username) :avatar None :password $ md5 password
                       next-db $ assoc db :users $ assoc (:users db) op-id new-user
                     session/update-session next-db sid $ fn (current)
-                      assoc current :user-id $ Option :some op-id
+                      assoc current :user-id $ Some op-id
           :examples $ []
-          :schema $ quote $ Fn app.schema/Db (Tuple String String) Number String Number (-> app.schema/Db)
+          :schema $ quote $ Fn schema/Db (Tuple String String) Number String Number (-> schema/Db)
       :ns $ %{} 'NsEntry (:doc |)
         :code $ quote $ ns app.updater.user
           :require (app.schema :as schema) (app.updater.session :as session)
