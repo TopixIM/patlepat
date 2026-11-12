@@ -131,7 +131,7 @@
             render-with! (mount-target)
               fn () $ comp-container @*states @*drafts @*store dispatch!
               fn (raw)
-                hint-fn $ Fn app.schema/Op $ -> Unit
+                hint-fn $ Fn schema/Op $ -> Unit
                 dispatch! $ schema/decode-op raw
           :examples $ []
           :schema $ quote $ Fn (-> Unit)
@@ -239,7 +239,7 @@
                   .sort-by $ fn (message) (:time message)
                 send-message $ fn (d!)
                   hint-fn $ Fn
-                    Fn app.schema/Op $ -> Unit
+                    Fn schema/Op $ -> Unit
                     -> Unit
                   on-draft $ schema/DraftOp :chat $ assoc state :draft |
                   when
@@ -289,12 +289,12 @@
                     :value $ :draft state
                     :on-input $ fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       on-draft $ schema/DraftOp :chat $ assoc state :draft (event-value e)
                     :on-keydown $ fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       when
                         = |Enter $ :key $ respo.core/keyboard-info e
@@ -305,7 +305,7 @@
                   a $ {} (:style ui/link) (:inner-text "|发送")
                     :on-click $ fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       send-message d!
           :examples $ []
@@ -445,7 +445,7 @@
                       {}
                       fn (info d!)
                         hint-fn $ Fn (Map Tag Dynamic)
-                          Fn app.schema/Op $ -> Unit
+                          Fn schema/Op $ -> Unit
                           -> Unit
                         d! $ schema/Op :session/remove-message $ decode-map-as
                           .unwrap $ get info :id
@@ -519,7 +519,7 @@
                       :style ui/input
                       :on-input $ fn (e d!)
                         hint-fn $ Fn respo.schema/RespoEvent
-                          Fn app.schema/Op $ -> Unit
+                          Fn schema/Op $ -> Unit
                           -> Unit
                         on-draft $ schema/DraftOp :login $ assoc state :username (event-value e)
                   =< nil 8
@@ -529,7 +529,7 @@
                       :style ui/input
                       :on-input $ fn (e d!)
                         hint-fn $ Fn respo.schema/RespoEvent
-                          Fn app.schema/Op $ -> Unit
+                          Fn schema/Op $ -> Unit
                           -> Unit
                         on-draft $ schema/DraftOp :login $ assoc state :password (event-value e)
                 =< nil 8
@@ -550,7 +550,7 @@
           :code $ quote $ defn on-submit (username password signup?)
             fn (event dispatch!)
               hint-fn $ Fn respo.schema/RespoEvent
-                Fn app.schema/Op $ -> Unit
+                Fn schema/Op $ -> Unit
                 -> Unit
               dispatch! $ let
                   credentials $ assert-type ([] username password) (Tuple String String)
@@ -705,7 +705,7 @@
                   a $ {} (:inner-text "|添加模板") (:style ui/link)
                     :on-click $ fn (_e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       .show template-editor d! $ fn (text)
                         hint-fn $ Fn String $ -> Unit
@@ -740,7 +740,7 @@
                           a $ {} (:style ui/link) (:inner-text "|删除")
                             :on-click $ fn (e d!)
                               hint-fn $ Fn respo.schema/RespoEvent
-                                Fn app.schema/Op $ -> Unit
+                                Fn schema/Op $ -> Unit
                                 -> Unit
                               .show remove-plugin d! $ fn () $ d!
                                 schema/Op :template/remove $ :id template
@@ -784,7 +784,7 @@
                       :font-size 12
                     fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       on-remove d!
                 <>
@@ -813,7 +813,7 @@
                   a $ {} (:style ui/link) (:inner-text "|增加卡片")
                     :on-click $ fn (e d!)
                       hint-fn $ Fn respo.schema/RespoEvent
-                        Fn app.schema/Op $ -> Unit
+                        Fn schema/Op $ -> Unit
                         -> Unit
                       .show create-plugin d! $ fn (text)
                         hint-fn $ {} $ :args ([] 'String)
@@ -1131,7 +1131,7 @@
                   assoc :game $ normalize-game $ .unwrap-or (get data :game) ({})
               decode-map-as normalized 'app.schema/Db
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Db)
+          :schema $ quote $ Fn Input (-> Db) (:generics Input)
           :tests $ [] $ %{} 'TestEntry (:name |legacy-game-archive-and-nominal-roundtrip)
             :code $ quote $ let
                 raw $ {}
@@ -1212,7 +1212,7 @@
                 _ $ raise "|Unsupported operation"
               raise "|Expected operation enum"
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Op)
+          :schema $ quote $ Fn Input (-> Op) (:generics Input)
           :tests $ [] $ %{} 'TestEntry (:name |nominal-operation-wire-roundtrip)
             :code $ quote $ do
               assert=
@@ -1283,12 +1283,12 @@
                 _ $ raise "|Invalid route view variant"
               raise "|Expected route view enum"
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> RouteView)
+          :schema $ quote $ Fn Input (-> RouteView) (:generics Input)
         'decode-router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-router (raw)
             decode-map-as (normalize-router raw) 'app.schema/Router
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Router)
+          :schema $ quote $ Fn Input (-> Router) (:generics Input)
         'decode-store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-store (raw)
             let
@@ -1309,7 +1309,7 @@
                   fn (payload) (decode-map-as payload 'app.schema/UserView)
               Store :logged-in? (:logged-in? envelope) :session (:session envelope) :reel-length (:reel-length envelope) :user user :router (:router envelope) :count (:count envelope) :color (:color envelope) :messages (:messages envelope) :templates (:templates envelope) :game $ :game envelope
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Store)
+          :schema $ quote $ Fn Input (-> Store) (:generics Input)
           :tests $ [] $ %{} 'TestEntry
             :name |nominal-routes-message-authors-and-incremental-patch
             :code $ quote $ let
@@ -1644,7 +1644,7 @@
         'on-exit! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn on-exit! ()
             .fold @*tasks &unit $ fn (acc task)
-              hint-fn $ Fn Unit calcit.core/FfiTask $ -> Unit
+              hint-fn $ Fn Unit FfiTask $ -> Unit
               .cancel! task
             reset! *tasks $ []
             persist-db!
@@ -1980,7 +1980,7 @@
             %{} 'TestEntry (:name |chat-clear-keeps-five-recent-and-blot-state)
               :code $ quote $ let
                   filled $ .fold (range 1 8) schema/database $ fn (db n)
-                    hint-fn $ Fn app.schema/Db Number $ -> app.schema/Db
+                    hint-fn $ Fn schema/Db Number $ -> schema/Db
                     updater db
                       schema/Op :message/create $ str |text- n
                       , 7 (str |m n) n
@@ -2022,7 +2022,7 @@
                       :time $ .unwrap $ get messages a
                 retained $ .fold (take ordered 5) ({})
                   fn (acc id)
-                    hint-fn $ Fn (Map String app.schema/Message) String $ -> (Map String app.schema/Message)
+                    hint-fn $ Fn (Map String schema/Message) String $ -> (Map String schema/Message)
                     assoc acc id $ .unwrap $ get messages id
               record-operation (assoc db :messages retained) sid op-id op-time "|清除了消息"
           :examples $ []
@@ -2234,7 +2234,7 @@
                     schema/Slot :id (str op-id |- idx) :order idx :text text :cards $ {}
               schema/Template :id op-id :text text :pieces (re-split text slot-pattern) :slots $ .fold slots ({})
                 fn (acc slot)
-                  hint-fn $ Fn (Map String app.schema/Slot) app.schema/Slot $ -> (Map String app.schema/Slot)
+                  hint-fn $ Fn (Map String schema/Slot) schema/Slot $ -> (Map String schema/Slot)
                   assoc acc (:id slot) slot
           :examples $ []
           :schema $ quote $ Fn String String (-> schema/Template)
