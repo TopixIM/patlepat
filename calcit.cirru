@@ -1056,17 +1056,6 @@
             :game app.schema/Game
           :examples $ []
           :schema $ quote StructDef
-        'StoreWire $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct StoreWire (:logged-in? Bool) (:session app.schema/Session) (:reel-length Number)
-            :user $ Option $ Map Tag Dynamic
-            :router $ Option app.schema/RouteView
-            :count Number
-            :color String
-            :messages $ Map String app.schema/MessageView
-            :templates $ Map String app.schema/Template
-            :game app.schema/Game
-          :examples $ []
-          :schema $ quote StructDef
         'Tab $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Tab (:name Tag) (:title String)
           :examples $ []
@@ -1304,10 +1293,7 @@
                     , normalize-template
                   assoc :game $ normalize-game $ .unwrap (get data :game)
                   assoc :router $ decode-optional-route-view $ .unwrap (get data :router)
-                envelope $ decode-map-as normalized 'app.schema/StoreWire
-                user $ .map (:user envelope)
-                  fn (payload) (decode-map-as payload 'app.schema/UserView)
-              Store :logged-in? (:logged-in? envelope) :session (:session envelope) :reel-length (:reel-length envelope) :user user :router (:router envelope) :count (:count envelope) :color (:color envelope) :messages (:messages envelope) :templates (:templates envelope) :game $ :game envelope
+              decode-map-as normalized app.schema/Store
           :examples $ []
           :schema $ quote $ Fn Input (-> Store) (:generics Input)
           :tests $ [] $ %{} 'TestEntry
@@ -1466,12 +1452,13 @@
                 (:some payload)
                   let
                       normalized $ -> (data-map payload) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
-                    Some normalized
+                    Some $ decode-map-as normalized app.schema/UserView
                 _ $ raise "|Invalid user view option"
               raise "|Expected user view option"
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Option $ Map Tag Dynamic
+          :schema $ quote $ Fn Input
+            -> $ Option UserView
+            :generics Input
         'normalize-router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-router (raw)
             without-legacy-nil
