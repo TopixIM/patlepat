@@ -23,7 +23,7 @@
           :code $ quote $ defref *states
             {} $ :cursor $ []
           :examples $ []
-          :schema $ quote $ Ref (Map Dynamic Dynamic)
+          :schema $ quote $ Ref (Map respo.schema/CoordKey Dynamic)
         '*store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *store None
           :examples $ []
@@ -65,7 +65,7 @@
               (app.schema/Op action)
                 match action
                   (:states cursor state)
-                    reset! *states $ decode-map-as (update-state-tree @*states cursor state) (Map Dynamic Dynamic)
+                    reset! *states $ decode-map-as (update-state-tree @*states cursor state) (Map respo.schema/CoordKey Dynamic)
                   (:effect/connect) (connect!)
                   _ $ ws-send! $ schema/encode-op action
             , &unit
