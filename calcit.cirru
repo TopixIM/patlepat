@@ -23,7 +23,7 @@
           :code $ quote $ defref *states
             {} $ :cursor $ []
           :examples $ []
-          :schema $ quote $ Ref (Map Dynamic Dynamic)
+          :schema $ quote $ Ref (Map respo.schema/CoordKey Dynamic)
         '*store $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defref *store None
           :examples $ []
@@ -65,7 +65,7 @@
               (app.schema/Op action)
                 match action
                   (:states cursor state)
-                    reset! *states $ decode-map-as (update-state-tree @*states cursor state) (Map Dynamic Dynamic)
+                    reset! *states $ decode-map-as (update-state-tree @*states cursor state) (Map respo.schema/CoordKey Dynamic)
                   (:effect/connect) (connect!)
                   _ $ ws-send! $ schema/encode-op action
             , &unit
@@ -114,7 +114,7 @@
                 hud! |error error
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn Wire (-> Unit) (:generics Wire) (:features :js-ffi)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! ()
             if (js-present? client-errors) (hud! |error client-errors)
@@ -1056,17 +1056,6 @@
             :game app.schema/Game
           :examples $ []
           :schema $ quote StructDef
-        'StoreWire $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defstruct StoreWire (:logged-in? Bool) (:session app.schema/Session) (:reel-length Number)
-            :user $ Option $ Map Tag Dynamic
-            :router $ Option app.schema/RouteView
-            :count Number
-            :color String
-            :messages $ Map String app.schema/MessageView
-            :templates $ Map String app.schema/Template
-            :game app.schema/Game
-          :examples $ []
-          :schema $ quote StructDef
         'Tab $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defstruct Tab (:name Tag) (:title String)
           :examples $ []
@@ -1095,8 +1084,9 @@
               decode-map-as (&struct:to-map raw) (Map Tag Dynamic)
               decode-map-as raw $ Map Tag Dynamic
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Map Tag Dynamic
+            :generics Input
         'database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def database
             Db :sessions ({}) :users ({}) :messages ({}) :templates ({}) :game $ Game :template-id None
@@ -1106,8 +1096,9 @@
           :code $ quote $ defn decode-credentials (raw)
             decode-map-as raw $ Tuple String String
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Tuple String String
+            :generics Input
         'decode-database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-database (raw)
             let
@@ -1124,7 +1115,8 @@
                     , normalize-user
                   assoc :messages $ normalize-items
                     .unwrap-or (get data :messages) ({})
-                    , normalize-message
+                    fn (message)
+                      decode-map-as (normalize-message message) app.schema/Message
                   assoc :templates $ normalize-items
                     .unwrap-or (get data :templates) ({})
                     , normalize-template
@@ -1253,8 +1245,9 @@
                 _ $ raise "|Invalid route view option"
               raise "|Expected route view option"
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Option RouteView
+            :generics Input
         'decode-optional-string $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-optional-string (raw)
             if (nil? raw) None $ if (enum? raw)
@@ -1265,8 +1258,9 @@
                 _ $ raise |Invalid-optional-string
               Some $ decode-map-as raw 'String
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Option String
+            :generics Input
         'decode-route-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-route-view (raw)
             if (enum? raw)
@@ -1286,7 +1280,13 @@
           :schema $ quote $ Fn Input (-> RouteView) (:generics Input)
         'decode-router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-router (raw)
-            decode-map-as (normalize-router raw) 'app.schema/Router
+            decode-map-as
+              without-legacy-nil
+                merge
+                  {} (:name :home) (:data nil) (:router nil)
+                  data-map raw
+                , :title
+              , app.schema/Router
           :examples $ []
           :schema $ quote $ Fn Input (-> Router) (:generics Input)
         'decode-store $ %{} 'CodeEntry (:doc |)
@@ -1304,10 +1304,7 @@
                     , normalize-template
                   assoc :game $ normalize-game $ .unwrap (get data :game)
                   assoc :router $ decode-optional-route-view $ .unwrap (get data :router)
-                envelope $ decode-map-as normalized 'app.schema/StoreWire
-                user $ .map (:user envelope)
-                  fn (payload) (decode-map-as payload 'app.schema/UserView)
-              Store :logged-in? (:logged-in? envelope) :session (:session envelope) :reel-length (:reel-length envelope) :user user :router (:router envelope) :count (:count envelope) :color (:color envelope) :messages (:messages envelope) :templates (:templates envelope) :game $ :game envelope
+              decode-map-as normalized app.schema/Store
           :examples $ []
           :schema $ quote $ Fn Input (-> Store) (:generics Input)
           :tests $ [] $ %{} 'TestEntry
@@ -1412,16 +1409,18 @@
           :schema $ quote $ Fn Op (-> AnyEnum) (:open :reflect)
         'normalize-card $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-card (raw)
-            without-legacy-nil (data-map raw) :author-id
+            decode-map-as
+              without-legacy-nil (data-map raw) :author-id
+              , app.schema/Card
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Card) (:generics Input)
         'normalize-game $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-game (raw)
-            without-legacy-nil (data-map raw) :template-id
+            decode-map-as
+              without-legacy-nil (data-map raw) :template-id
+              , app.schema/Game
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Game) (:generics Input)
         'normalize-items $ %{} 'CodeEntry
           :doc "|Normalize a String-keyed wire collection. Each untrusted value crosses the supplied decoder exactly once; preserve its concrete result type instead of erasing it to another open map."
           :code $ quote $ defn normalize-items (raw f)
@@ -1430,10 +1429,10 @@
               fn (id item)
                 MapEntryDecision :keep id $ f item
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             Fn Dynamic $ -> T
             -> $ Map String T
-            :generics T
+            :generics Input T
           :tests $ [] $ %{} 'TestEntry (:name |preserves-normalizer-result-type)
             :code $ quote $ assert=
               {} (|a 5) (|b 8)
@@ -1448,16 +1447,18 @@
                 data $ without-legacy-nil (data-map raw) :author-id
               assoc data :blotted? $ .unwrap-or (get data :blotted?) false
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Map Tag Dynamic
+            :generics Input
         'normalize-message-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-message-view (raw)
             let
                 data $ normalize-message raw
-              assoc data :user $ normalize-optional-user-view $ .unwrap (get data :user)
+              decode-map-as
+                assoc data :user $ normalize-optional-user-view $ .unwrap (get data :user)
+                , app.schema/MessageView
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> MessageView) (:generics Input)
         'normalize-optional-user-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-optional-user-view (raw)
             if (enum? raw)
@@ -1466,61 +1467,56 @@
                 (:some payload)
                   let
                       normalized $ -> (data-map payload) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
-                    Some normalized
+                    Some $ decode-map-as normalized app.schema/UserView
                 _ $ raise "|Invalid user view option"
               raise "|Expected user view option"
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Option $ Map Tag Dynamic
-        'normalize-router $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn normalize-router (raw)
-            without-legacy-nil
-              merge
-                {} (:name :home) (:data nil) (:router nil)
-                data-map raw
-              , :title
-          :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input
+            -> $ Option UserView
+            :generics Input
         'normalize-session $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-session (raw)
             let
                 data $ data-map raw
-              -> data (without-legacy-nil :user-id) (without-legacy-nil :nickname)
-                assoc :router $ normalize-router $ .unwrap-or (get data :router)
-                  {} $ :name :home
-                assoc :messages $ normalize-items
-                  .unwrap-or (get data :messages) ({})
-                  , data-map
+              decode-map-as
+                -> data (without-legacy-nil :user-id) (without-legacy-nil :nickname)
+                  assoc :router $ decode-router $ .unwrap-or (get data :router)
+                    {} $ :name :home
+                  assoc :messages $ normalize-items
+                    .unwrap-or (get data :messages) ({})
+                    , data-map
+                , app.schema/Session
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Session) (:generics Input)
         'normalize-slot $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-slot (raw)
             let
                 data $ data-map raw
-              assoc data :cards $ normalize-items
-                .unwrap-or (get data :cards) ({})
-                , normalize-card
+              decode-map-as
+                assoc data :cards $ normalize-items
+                  .unwrap-or (get data :cards) ({})
+                  , normalize-card
+                , app.schema/Slot
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Slot) (:generics Input)
         'normalize-template $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-template (raw)
             let
                 data $ data-map raw
-              assoc data :slots $ normalize-items
-                .unwrap-or (get data :slots) ({})
-                , normalize-slot
+              decode-map-as
+                assoc data :slots $ normalize-items
+                  .unwrap-or (get data :slots) ({})
+                  , normalize-slot
+                , app.schema/Template
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Template) (:generics Input)
         'normalize-user $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-user (raw)
-            -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
+            decode-map-as
+              -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
+              , app.schema/User
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> User) (:generics Input)
         'router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def router
             Router :name :home :title None :data nil :router nil
