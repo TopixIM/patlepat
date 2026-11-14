@@ -1244,8 +1244,9 @@
                 _ $ raise "|Invalid route view option"
               raise "|Expected route view option"
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Option RouteView
+            :generics Input
         'decode-optional-string $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-optional-string (raw)
             if (nil? raw) None $ if (enum? raw)
@@ -1278,7 +1279,13 @@
           :schema $ quote $ Fn Input (-> RouteView) (:generics Input)
         'decode-router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-router (raw)
-            decode-map-as (normalize-router raw) 'app.schema/Router
+            decode-map-as
+              without-legacy-nil
+                merge
+                  {} (:name :home) (:data nil) (:router nil)
+                  data-map raw
+                , :title
+              , app.schema/Router
           :examples $ []
           :schema $ quote $ Fn Input (-> Router) (:generics Input)
         'decode-store $ %{} 'CodeEntry (:doc |)
@@ -1466,23 +1473,13 @@
           :schema $ quote $ Fn Input
             -> $ Option UserView
             :generics Input
-        'normalize-router $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn normalize-router (raw)
-            without-legacy-nil
-              merge
-                {} (:name :home) (:data nil) (:router nil)
-                data-map raw
-              , :title
-          :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
         'normalize-session $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-session (raw)
             let
                 data $ data-map raw
               decode-map-as
                 -> data (without-legacy-nil :user-id) (without-legacy-nil :nickname)
-                  assoc :router $ normalize-router $ .unwrap-or (get data :router)
+                  assoc :router $ decode-router $ .unwrap-or (get data :router)
                     {} $ :name :home
                   assoc :messages $ normalize-items
                     .unwrap-or (get data :messages) ({})
