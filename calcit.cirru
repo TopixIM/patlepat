@@ -1428,10 +1428,10 @@
               fn (id item)
                 MapEntryDecision :keep id $ f item
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             Fn Dynamic $ -> T
             -> $ Map String T
-            :generics T
+            :generics Input T
           :tests $ [] $ %{} 'TestEntry (:name |preserves-normalizer-result-type)
             :code $ quote $ assert=
               {} (|a 5) (|b 8)
