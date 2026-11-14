@@ -1404,13 +1404,14 @@
               without-legacy-nil (data-map raw) :author-id
               , app.schema/Card
           :examples $ []
-          :schema $ quote $ Fn Input (-> app.schema/Card) (:generics Input)
+          :schema $ quote $ Fn Input (-> Card) (:generics Input)
         'normalize-game $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-game (raw)
-            without-legacy-nil (data-map raw) :template-id
+            decode-map-as
+              without-legacy-nil (data-map raw) :template-id
+              , app.schema/Game
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Game) (:generics Input)
         'normalize-items $ %{} 'CodeEntry
           :doc "|Normalize a String-keyed wire collection. Each untrusted value crosses the supplied decoder exactly once; preserve its concrete result type instead of erasing it to another open map."
           :code $ quote $ defn normalize-items (raw f)
@@ -1443,10 +1444,11 @@
           :code $ quote $ defn normalize-message-view (raw)
             let
                 data $ normalize-message raw
-              assoc data :user $ normalize-optional-user-view $ .unwrap (get data :user)
+              decode-map-as
+                assoc data :user $ normalize-optional-user-view $ .unwrap (get data :user)
+                , app.schema/MessageView
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> MessageView) (:generics Input)
         'normalize-optional-user-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-optional-user-view (raw)
             if (enum? raw)
@@ -1476,15 +1478,16 @@
           :code $ quote $ defn normalize-session (raw)
             let
                 data $ data-map raw
-              -> data (without-legacy-nil :user-id) (without-legacy-nil :nickname)
-                assoc :router $ normalize-router $ .unwrap-or (get data :router)
-                  {} $ :name :home
-                assoc :messages $ normalize-items
-                  .unwrap-or (get data :messages) ({})
-                  , data-map
+              decode-map-as
+                -> data (without-legacy-nil :user-id) (without-legacy-nil :nickname)
+                  assoc :router $ normalize-router $ .unwrap-or (get data :router)
+                    {} $ :name :home
+                  assoc :messages $ normalize-items
+                    .unwrap-or (get data :messages) ({})
+                    , data-map
+                , app.schema/Session
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> Session) (:generics Input)
         'normalize-slot $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-slot (raw)
             let
@@ -1495,7 +1498,7 @@
                   , normalize-card
                 , app.schema/Slot
           :examples $ []
-          :schema $ quote $ Fn Input (-> app.schema/Slot) (:generics Input)
+          :schema $ quote $ Fn Input (-> Slot) (:generics Input)
         'normalize-template $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-template (raw)
             let
@@ -1506,7 +1509,7 @@
                   , normalize-slot
                 , app.schema/Template
           :examples $ []
-          :schema $ quote $ Fn Input (-> app.schema/Template) (:generics Input)
+          :schema $ quote $ Fn Input (-> Template) (:generics Input)
         'normalize-user $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-user (raw)
             -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
