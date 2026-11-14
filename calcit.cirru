@@ -1400,10 +1400,11 @@
           :schema $ quote $ Fn Op (-> AnyEnum) (:open :reflect)
         'normalize-card $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-card (raw)
-            without-legacy-nil (data-map raw) :author-id
+            decode-map-as
+              without-legacy-nil (data-map raw) :author-id
+              , app.schema/Card
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> app.schema/Card) (:generics Input)
         'normalize-game $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-game (raw)
             without-legacy-nil (data-map raw) :template-id
@@ -1488,22 +1489,24 @@
           :code $ quote $ defn normalize-slot (raw)
             let
                 data $ data-map raw
-              assoc data :cards $ normalize-items
-                .unwrap-or (get data :cards) ({})
-                , normalize-card
+              decode-map-as
+                assoc data :cards $ normalize-items
+                  .unwrap-or (get data :cards) ({})
+                  , normalize-card
+                , app.schema/Slot
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> app.schema/Slot) (:generics Input)
         'normalize-template $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-template (raw)
             let
                 data $ data-map raw
-              assoc data :slots $ normalize-items
-                .unwrap-or (get data :slots) ({})
-                , normalize-slot
+              decode-map-as
+                assoc data :slots $ normalize-items
+                  .unwrap-or (get data :slots) ({})
+                  , normalize-slot
+                , app.schema/Template
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> app.schema/Template) (:generics Input)
         'normalize-user $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-user (raw)
             -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
