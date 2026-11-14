@@ -1084,8 +1084,9 @@
               decode-map-as (&struct:to-map raw) (Map Tag Dynamic)
               decode-map-as raw $ Map Tag Dynamic
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Map Tag Dynamic
+            :generics Input
         'database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def database
             Db :sessions ({}) :users ({}) :messages ({}) :templates ({}) :game $ Game :template-id None
