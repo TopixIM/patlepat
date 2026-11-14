@@ -1095,8 +1095,9 @@
           :code $ quote $ defn decode-credentials (raw)
             decode-map-as raw $ Tuple String String
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Tuple String String
+            :generics Input
         'decode-database $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-database (raw)
             let
@@ -1254,8 +1255,9 @@
                 _ $ raise |Invalid-optional-string
               Some $ decode-map-as raw 'String
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Option String
+            :generics Input
         'decode-route-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn decode-route-view (raw)
             if (enum? raw)
