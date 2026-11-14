@@ -114,7 +114,7 @@
                 hud! |error error
             , &unit
           :examples $ []
-          :schema $ quote $ Fn Dynamic (-> Unit) (:features :js-ffi)
+          :schema $ quote $ Fn Wire (-> Unit) (:generics Wire) (:features :js-ffi)
         'reload! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn reload! ()
             if (js-present? client-errors) (hud! |error client-errors)
