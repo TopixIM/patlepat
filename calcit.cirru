@@ -1114,7 +1114,8 @@
                     , normalize-user
                   assoc :messages $ normalize-items
                     .unwrap-or (get data :messages) ({})
-                    , normalize-message
+                    fn (message)
+                      decode-map-as (normalize-message message) app.schema/Message
                   assoc :templates $ normalize-items
                     .unwrap-or (get data :templates) ({})
                     , normalize-template
@@ -1438,8 +1439,9 @@
                 data $ without-legacy-nil (data-map raw) :author-id
               assoc data :blotted? $ .unwrap-or (get data :blotted?) false
           :examples $ []
-          :schema $ quote $ Fn Dynamic
+          :schema $ quote $ Fn Input
             -> $ Map Tag Dynamic
+            :generics Input
         'normalize-message-view $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-message-view (raw)
             let
@@ -1512,10 +1514,11 @@
           :schema $ quote $ Fn Input (-> Template) (:generics Input)
         'normalize-user $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn normalize-user (raw)
-            -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
+            decode-map-as
+              -> (data-map raw) (without-legacy-nil :nickname) (without-legacy-nil :avatar)
+              , app.schema/User
           :examples $ []
-          :schema $ quote $ Fn Dynamic
-            -> $ Map Tag Dynamic
+          :schema $ quote $ Fn Input (-> User) (:generics Input)
         'router $ %{} 'CodeEntry (:doc |)
           :code $ quote $ def router
             Router :name :home :title None :data nil :router nil
