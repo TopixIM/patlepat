@@ -309,7 +309,7 @@
                         -> Unit
                       send-message d!
           :examples $ []
-          :schema $ quote $ Fn schema/ChatState (Map String schema/MessageView) (Map Tag Dynamic)
+          :schema $ quote $ Fn schema/ChatState (Map String schema/MessageView) (Map Tag respo.schema/CssValue)
             Fn schema/DraftOp $ -> Unit
             -> respo.schema/Component
             :features :js-ffi
