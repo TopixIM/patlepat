@@ -41,7 +41,7 @@
                 :on-data on-server-data
             , &unit
           :examples $ []
-          :schema $ quote $ Fn (-> Unit) (:features :state)
+          :schema $ quote $ Fn (-> Unit) (:features :io :state)
         'connection-url $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn connection-url ()
             let
@@ -56,12 +56,7 @@
         'dispatch! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn dispatch! (op)
             match op
-              (app.schema/DraftOp edit)
-                match edit
-                  (:login state)
-                    reset! *drafts $ assoc @*drafts :login state
-                  (:chat state)
-                    reset! *drafts $ assoc @*drafts :chat state
+              (app.schema/DraftOp edit) (dispatch-draft! edit)
               (app.schema/Op action)
                 match action
                   (:states cursor state)
@@ -70,7 +65,27 @@
                   _ $ ws-send! $ schema/encode-op action
             , &unit
           :examples $ []
-          :schema $ quote $ Fn schema/ClientOp (-> Unit) (:features :state)
+          :schema $ quote $ Fn schema/ClientOp (-> Unit) (:features :io :state)
+        'dispatch-draft! $ %{} 'CodeEntry (:doc |)
+          :code $ quote $ defn dispatch-draft! (edit)
+            match edit
+              (:login state)
+                reset! *drafts $ assoc @*drafts :login state
+              (:chat state)
+                reset! *drafts $ assoc @*drafts :chat state
+            , &unit
+          :examples $ []
+          :schema $ quote $ Fn schema/DraftOp (-> Unit) (:features :state)
+          :tests $ [] $ %{} 'TestEntry (:name |updates-login-and-chat)
+            :code $ quote $ let
+                previous @*drafts
+                login $ schema/LoginState :username |alice :password |secret
+                chat $ schema/ChatState :draft |hello
+              dispatch-draft! $ schema/DraftOp :login login
+              assert= login $ :login @*drafts
+              dispatch-draft! $ schema/DraftOp :chat chat
+              assert= chat $ :chat @*drafts
+              reset! *drafts previous
         'main! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn main! ()
             println "|Running mode:" $ if config/dev? |dev |release
@@ -129,9 +144,9 @@
         'render-app! $ %{} 'CodeEntry (:doc |)
           :code $ quote $ defn render-app! ()
             render-with! (mount-target)
-              fn () $ comp-container @*states @*drafts @*store dispatch!
+              fn () $ comp-container @*states @*drafts @*store dispatch-draft!
               fn (raw)
-                hint-fn $ Fn schema/Op $ -> Unit
+                hint-fn $ Fn schema/Op (-> Unit) (:features :io :state)
                 dispatch! $ schema/decode-op raw
           :examples $ []
           :schema $ quote $ Fn (-> Unit) (:features :io :state)
