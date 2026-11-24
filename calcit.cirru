@@ -29,14 +29,14 @@
           :examples $ []
           :schema $ quote $ Ref (Option schema/Store)
         '*wire-store $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defref *wire-store nil
+          :code $ quote $ defref *wire-store None
           :examples $ []
-          :schema $ quote $ Ref Dynamic
+          :schema $ quote $ Ref (Option Dynamic)
         'connect! $ %{} 'CodeEntry (:doc |)
-          :code $ quote $ defn connect! () (reset! *wire-store nil) (reset! *store None)
+          :code $ quote $ defn connect! () (reset! *wire-store None) (reset! *store None)
             let
                 opened $ fn (event) (simulate-login!) &unit
-                closed $ fn (event) (reset! *wire-store nil) (reset! *store None) (host/console-error! |Lost-connection) &unit
+                closed $ fn (event) (reset! *wire-store None) (reset! *store None) (host/console-error! |Lost-connection) &unit
               ws-edn.client/ws-connect-typed! (connection-url)
                 ws-edn.client/ClientConfig :retry-base-ms None :retry-max-ms None :retry-jitter None :heartbeat-timeout-ms None :class-mapper $ {}
                 ws-edn.client/ClientCallbacks :on-open (Some opened) :on-close (Some closed) :on-error None :on-data $ Some on-server-data
@@ -114,12 +114,12 @@
                   (:patch raw-changes)
                     let
                         changes $ decode-changes raw-changes
-                        result $ try-patch-twig @*wire-store changes
+                        result $ try-patch-twig (.unwrap-or @*wire-store nil) changes
                       match result
                         (:ok candidate)
                           let
                               decoded $ schema/decode-store candidate
-                            reset! *wire-store candidate
+                            reset! *wire-store $ Some candidate
                             reset! *store $ Some decoded
                         (:err error)
                           raise $ patch-error-message error
